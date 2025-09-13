@@ -1,87 +1,127 @@
+/**
+ * @OnlyCurrentDoc
+ */
+
+/**
+ * Main function to set up the spreadsheet for the auto-tagging workflow.
+ * It creates a metadata section, data headers, supporting sheets, and applies filters.
+ */
 function initializePlugin() {
   try {
-    const sheet = SpreadsheetApp.getActiveSheet();
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const mainSheet = ss.getActiveSheet();
+    mainSheet.setName("Processing"); // Standardize the main sheet name
+
+    // Set up the main sheet layout (metadata + headers)
+    setupMainSheetLayout(mainSheet);
     
-    // Step 1: Validate required columns
-    validateRequiredColumns(sheet);
+    // Create and configure the 'Rules' and 'Accounts' sheets
+    setupSupportingSheets(ss);
     
-    // Step 2: Add dynamic columns if missing
-    addDynamicColumns(sheet);
+    // Add the 'Funding Account' dropdown using data from the 'Accounts' sheet
+    createFundingAccountDropdown(mainSheet, ss);
     
-    // Step 3: Create supporting sheets
-    createSupportingSheets();
-    
-    SpreadsheetApp.getUi().alert('✅ Plugin initialized successfully!\n\nCheck out the new "Rules" and "Accounts" sheets.');
+    // Automatically apply filters to the data headers
+    applyAutomaticFilters(mainSheet);
+
+    SpreadsheetApp.getUi().alert('✅ Initialization Complete!\n\nThe sheet is now configured with metadata controls and data filters.');
     
   } catch (error) {
     SpreadsheetApp.getUi().alert('❌ Error: ' + error.message);
   }
 }
 
-function validateRequiredColumns(sheet) {
-  const requiredColumns = ['Sr No', 'Transaction Date', 'Withdrawal', 'Deposit', 'Balance', 'Narration', 'User Context'];
-  const headers = sheet.getRange(1, 1, 1, 7).getValues()[0];
-  
-  for (let i = 0; i < requiredColumns.length; i++) {
-    if (headers[i] !== requiredColumns[i]) {
-      throw new Error(`Column ${i + 1} should be "${requiredColumns[i]}" but found "${headers[i]}"`);
-    }
-  }
-  
-  console.log('✅ All required columns validated');
+/**
+ * Sets up the top rows for metadata and the data headers on the main sheet.
+ */
+function setupMainSheetLayout(sheet) {
+  sheet.clear(); // Start with a clean slate
+  sheet.setFrozenRows(4); // Freeze the metadata and header rows for easy scrolling
+
+  // --- Setup Metadata Section (Rows 1-3) ---
+  const metadataSection = sheet.getRange("A1:B3");
+  metadataSection.setFontWeight("bold");
+  sheet.getRange("A1").setValue("Funding Account:");
+  sheet.getRange("A2").setValue("Processing Status:");
+  sheet.getRange("B2").setValue("Ready").setFontWeight("normal");
+  sheet.getRange("A3").setValue("Last Run:").setValue("N/A").setFontWeight("normal");
+
+  // --- Setup Data Headers (Row 4) ---
+  const headers = [
+    "Sr No", "Transaction Date", "Narration", "Withdrawal Amount", "Deposit Amount", "Balance",
+    "User Context", "Tags", "LLM Confidence", "Final Entry"
+  ];
+  sheet.getRange(4, 1, 1, headers.length).setValues([headers]).setFontWeight("bold");
 }
 
-function addDynamicColumns(sheet) {
-  const dynamicColumns = ['Tags', 'LLM Confidence', 'Final Entry'];
-  const lastCol = sheet.getLastColumn();
-  
-  // Check if dynamic columns already exist
-  if (lastCol >= 10) {
-    const existingHeaders = sheet.getRange(1, 8, 1, 3).getValues()[0];
-    if (existingHeaders[0] === 'Tags') {
-      console.log('✅ Dynamic columns already exist');
-      return;
-    }
+/**
+ * Creates and configures the 'Rules' and 'Accounts' sheets.
+ */
+function setupSupportingSheets(spreadsheet) {
+  // --- Setup 'Accounts' Sheet ---
+  const accountsSheetName = 'Accounts';
+  let accountsSheet = spreadsheet.getSheetByName(accountsSheetName);
+  if (!accountsSheet) {
+    accountsSheet = spreadsheet.insertSheet(accountsSheetName);
   }
-  
-  // Add dynamic column headers
-  for (let i = 0; i < dynamicColumns.length; i++) {
-    sheet.getRange(1, 8 + i).setValue(dynamicColumns[i]);
+  accountsSheet.clear();
+  accountsSheet.getRange("A1:C1").setValues([['Account', 'Type', 'Usage Count']]).setFontWeight("bold");
+  populateAccountsSheet(accountsSheet); // Use your existing comprehensive list of accounts
+
+  // --- Setup 'Rules' Sheet with enhanced columns ---
+  const rulesSheetName = 'Rules';
+  let rulesSheet = spreadsheet.getSheetByName(rulesSheetName);
+  if (!rulesSheet) {
+    rulesSheet = spreadsheet.insertSheet(rulesSheetName);
   }
-  
-  // Make headers bold
-  sheet.getRange(1, 8, 1, 3).setFontWeight('bold');
-  
-  console.log('✅ Dynamic columns added');
+  rulesSheet.clear();
+  const rulesHeaders = ["ID", "Priority", "Active", "Condition", "Pattern / Value", "Action Type", "Action Value"];
+  rulesSheet.getRange(1, 1, 1, rulesHeaders.length).setValues([rulesHeaders]).setFontWeight("bold");
+  rulesSheet.getRange("C2:C").insertCheckboxes(); // Add checkboxes to the 'Active' column
 }
 
-function createSupportingSheets() {
-  const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
-  
-  // Create Rules sheet if it doesn't exist
-  if (!spreadsheet.getSheetByName('Rules')) {
-    const rulesSheet = spreadsheet.insertSheet('Rules');
-    const rulesHeaders = ['ID', 'Priority', 'Active', 'Condition Type', 'Pattern', 'Target Account', 'Tags', 'Created Date'];
-    rulesSheet.getRange(1, 1, 1, rulesHeaders.length).setValues([rulesHeaders]);
-    rulesSheet.getRange(1, 1, 1, rulesHeaders.length).setFontWeight('bold');
-    console.log('✅ Rules sheet created');
-  }
-  
-  // Create Accounts sheet if it doesn't exist
-  if (!spreadsheet.getSheetByName('Accounts')) {
-    const accountsSheet = spreadsheet.insertSheet('Accounts');
-    const accountsHeaders = ['Account', 'Type', 'Usage Count'];
-    accountsSheet.getRange(1, 1, 1, accountsHeaders.length).setValues([accountsHeaders]);
-    accountsSheet.getRange(1, 1, 1, accountsHeaders.length).setFontWeight('bold');
-    
-    // Pre-populate with your account hierarchy
-    populateAccountsSheet(accountsSheet);
-    console.log('✅ Accounts sheet created and populated');
+/**
+ * Creates the data validation dropdown for the 'Funding Account' cell.
+ */
+function createFundingAccountDropdown(mainSheet, spreadsheet) {
+  const accountsSheet = spreadsheet.getSheetByName('Accounts');
+  if (!accountsSheet) return;
+
+  // Filter for only Asset and Liability accounts to be used as funding accounts
+  const allAccounts = accountsSheet.getRange(2, 1, accountsSheet.getLastRow() - 1, 2).getValues();
+  const fundingAccounts = allAccounts
+    .filter(row => row[1] === 'Asset' || row[1] === 'Liability')
+    .map(row => row[0]);
+
+  if (fundingAccounts.length > 0) {
+    const cell = mainSheet.getRange('B1');
+    const rule = SpreadsheetApp.newDataValidation().requireValueInList(fundingAccounts).build();
+    cell.setDataValidation(rule);
   }
 }
 
+/**
+ * Applies filters automatically to the data header row.
+ */
+function applyAutomaticFilters(sheet) {
+  const headerRow = 4;
+  const range = sheet.getRange(headerRow, 1, sheet.getMaxRows() - headerRow, sheet.getLastColumn());
+  
+  // Always remove existing filters before creating a new one to avoid errors.
+  if (sheet.getFilter()) {
+    sheet.getFilter().remove();
+  }
+  range.createFilter();
+}
+
+
+/**
+ * Populates the 'Accounts' sheet with the full chart of accounts.
+ * This is your existing function, kept for its comprehensive account list.
+ */
 function populateAccountsSheet(sheet) {
-  const accounts = [
+  // This is the comprehensive list from your original 'Validation.js' file.
+const accounts = [
     ['Expenses:Entertainment:Dining Out', 'Expense', 0],
     ['Expenses:Entertainment:Movies & Shows', 'Expense', 0],
     ['Expenses:Entertainment:Other Entertainment', 'Expense', 0],
@@ -151,7 +191,5 @@ function populateAccountsSheet(sheet) {
     ['Liabilities:Credit Card:SBI', 'Liability', 0],
     ['Equity', 'Equity', 0]
   ];
-  
-  // Add all accounts starting from row 2
   sheet.getRange(2, 1, accounts.length, 3).setValues(accounts);
 }
