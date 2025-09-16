@@ -47,10 +47,10 @@ function setupMainSheetLayout(sheet) {
   sheet.getRange("A3").setValue("Last Run:").setValue("N/A").setFontWeight("normal");
 
   // --- Setup Data Headers (Row 4) ---
-  const headers = [
-    "Sr No", "Transaction Date", "Narration", "Withdrawal Amount", "Deposit Amount", "Balance",
-    "User Context", "Tags", "LLM Confidence", "Final Entry"
-  ];
+const headers = [
+  "Sr No", "Transaction Date", "Narration", "Withdrawal", "Deposit", "Balance",
+  "User Context", "Tags", "LLM Confidence", "Final Entry"
+];
   sheet.getRange(4, 1, 1, headers.length).setValues([headers]).setFontWeight("bold");
 }
 
@@ -63,40 +63,36 @@ function setupSupportingSheets(spreadsheet) {
   let accountsSheet = spreadsheet.getSheetByName(accountsSheetName);
   if (!accountsSheet) {
     accountsSheet = spreadsheet.insertSheet(accountsSheetName);
+    accountsSheet.clear();
+    accountsSheet.getRange("A1:C1").setValues([['Account', 'Type', 'Usage Count']]).setFontWeight("bold");
+    populateAccountsSheet(accountsSheet); // Only populate if new sheet
+  } else {
+    // Sheet exists, just ensure headers are correct
+    const existingHeaders = accountsSheet.getRange("A1:C1").getValues()[0];
+    if (existingHeaders[0] !== 'Account' || existingHeaders[1] !== 'Type' || existingHeaders[2] !== 'Usage Count') {
+      accountsSheet.getRange("A1:C1").setValues([['Account', 'Type', 'Usage Count']]).setFontWeight("bold");
+    }
   }
-  accountsSheet.clear();
-  accountsSheet.getRange("A1:C1").setValues([['Account', 'Type', 'Usage Count']]).setFontWeight("bold");
-  populateAccountsSheet(accountsSheet); // Use your existing comprehensive list of accounts
 
   // --- Setup 'Rules' Sheet with enhanced columns ---
   const rulesSheetName = 'Rules';
   let rulesSheet = spreadsheet.getSheetByName(rulesSheetName);
   if (!rulesSheet) {
     rulesSheet = spreadsheet.insertSheet(rulesSheetName);
-  }
-  rulesSheet.clear();
-  const rulesHeaders = ["ID", "Priority", "Active", "Condition", "Pattern / Value", "Action Type", "Action Value"];
-  rulesSheet.getRange(1, 1, 1, rulesHeaders.length).setValues([rulesHeaders]).setFontWeight("bold");
-  rulesSheet.getRange("C2:C").insertCheckboxes(); // Add checkboxes to the 'Active' column
-}
-
-/**
- * Creates the data validation dropdown for the 'Funding Account' cell.
- */
-function createFundingAccountDropdown(mainSheet, spreadsheet) {
-  const accountsSheet = spreadsheet.getSheetByName('Accounts');
-  if (!accountsSheet) return;
-
-  // Filter for only Asset and Liability accounts to be used as funding accounts
-  const allAccounts = accountsSheet.getRange(2, 1, accountsSheet.getLastRow() - 1, 2).getValues();
-  const fundingAccounts = allAccounts
-    .filter(row => row[1] === 'Asset' || row[1] === 'Liability')
-    .map(row => row[0]);
-
-  if (fundingAccounts.length > 0) {
-    const cell = mainSheet.getRange('B1');
-    const rule = SpreadsheetApp.newDataValidation().requireValueInList(fundingAccounts).build();
-    cell.setDataValidation(rule);
+    rulesSheet.clear();
+    const rulesHeaders = ["ID", "Priority", "Active", "Condition", "Pattern / Value", "Action Type", "Action Value"];
+    rulesSheet.getRange(1, 1, 1, rulesHeaders.length).setValues([rulesHeaders]).setFontWeight("bold");
+    rulesSheet.getRange("C2:C").insertCheckboxes(); // Add checkboxes to the 'Active' column
+  } else {
+    // Sheet exists, just ensure headers are correct and checkboxes are in Active column
+    const rulesHeaders = ["ID", "Priority", "Active", "Condition", "Pattern / Value", "Action Type", "Action Value"];
+    rulesSheet.getRange(1, 1, 1, rulesHeaders.length).setValues([rulesHeaders]).setFontWeight("bold");
+    // Only add checkboxes if Active column doesn't already have them
+    try {
+      rulesSheet.getRange("C2:C").insertCheckboxes();
+    } catch (e) {
+      // Checkboxes already exist, ignore error
+    }
   }
 }
 

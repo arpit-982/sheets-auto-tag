@@ -43,12 +43,24 @@ function processCurrentRow() {
 
 function processRowRange(sheet, startRow, endRow) {
   try {
+    Logger.log('=== processRowRange called ===');
+    Logger.log('Processing rows ' + startRow + ' to ' + endRow);
+    
     // Read headers from row 4 instead of row 1
     const headers = sheet.getRange(4, 1, 1, sheet.getLastColumn()).getValues()[0];
     const colIndices = getColumnIndices(headers);
     
+    Logger.log('Column indices: ' + JSON.stringify(colIndices));
+    
     // Read funding account from cell B1
-    const fundingAccount = sheet.getRange('B1').getValue() || 'Assets:Checking:Bank of Baroda';
+    const fundingAccount = sheet.getRange('B1').getValue() || '';
+    Logger.log('Funding account: ' + fundingAccount);
+    
+    // FIX: Stop processing if no funding account is selected
+    if (!fundingAccount || fundingAccount.trim() === '') {
+      SpreadsheetApp.getUi().alert('❌ Please select a Funding Account in cell B1 before processing transactions.');
+      return;
+    }
     
     let processedCount = 0;
     const totalRows = endRow - startRow + 1;
@@ -60,23 +72,28 @@ function processRowRange(sheet, startRow, endRow) {
     for (let rowNum = startRow; rowNum <= endRow; rowNum++) {
       const row = sheet.getRange(rowNum, 1, 1, sheet.getLastColumn()).getValues()[0];
       
-      // Skip empty rows (no Sr No)
-      if (!row[colIndices.srNo]) continue;
+      Logger.log('Processing row ' + rowNum + ': ' + JSON.stringify(row));
       
-      // Update progress
-      processedCount++;
-      if (processedCount % 2 === 0 || processedCount === totalRows) {
-        SpreadsheetApp.getActiveSpreadsheet().toast(`Processing... (${processedCount}/${totalRows})`, 'Ledger Tools', 2);
+      // Skip empty rows (no Sr No)
+      if (!row[colIndices.srNo]) {
+        Logger.log('Skipping row ' + rowNum + ' - no Sr No');
+        continue;
       }
       
       // Process the transaction with funding account
+      Logger.log('Calling processTransaction for row ' + rowNum);
       const result = processTransaction(row, colIndices, fundingAccount);
+      Logger.log('processTransaction returned: ' + JSON.stringify(result));
       
       // Update the row with results
       sheet.getRange(rowNum, colIndices.tags + 1).setValue(result.tags);
       sheet.getRange(rowNum, colIndices.confidence + 1).setValue(result.confidence);
       sheet.getRange(rowNum, colIndices.finalEntry + 1).setValue(result.finalEntry);
+      
+      processedCount++;
     }
+    
+    Logger.log('Completed processing ' + processedCount + ' rows');
     
     SpreadsheetApp.getActiveSpreadsheet().toast(`Completed! Processed ${processedCount}/${totalRows} rows`, 'Ledger Tools', 5);
     SpreadsheetApp.getUi().alert(`✅ Processed ${processedCount} transactions in rows ${startRow} to ${endRow}`);
@@ -108,28 +125,43 @@ function getColumnIndices(headers) {
  * @returns {object} An object with {tags, confidence, finalEntry}.
  */
 function processTransaction(row, colIndices, fundingAccount) {
+  Logger.log('=== processTransaction called ===');
+  
   const narration = String(row[colIndices.narration] || '');
   const userContext = String(row[colIndices.userContext] || '');
-  const withdrawal = row[colIndices.withdrawal] || 0;
-  const deposit = row[colIndices.deposit] || 0;
+  const withdrawalRaw = row[colIndices.withdrawal] || 0;
+  const depositRaw = row[colIndices.deposit] || 0;
   const dateValue = row[colIndices.date];
 
-  if (!narration || (withdrawal === 0 && deposit === 0) || !dateValue) {
-    return { tags: "", confidence: "", finalEntry: "" }; // Skip empty or invalid rows
-  }
-  const date = new Date(dateValue);
+  // FIX: Parse amounts properly, handling commas and strings
+  const withdrawal = parseFloat(String(withdrawalRaw).replace(/,/g, '')) || 0;
+  const deposit = parseFloat(String(depositRaw).replace(/,/g, '')) || 0;
 
+  Logger.log('Extracted values - Narration: ' + narration + ', Withdrawal: ' + withdrawal + ', Deposit: ' + deposit);
+
+  if (!narration || (withdrawal === 0 && deposit === 0) || !dateValue) {
+    Logger.log('Skipping row - invalid data');
+    return { tags: "", confidence: "", finalEntry: "" };
+  }
+  
+  const date = new Date(dateValue);
   const amount = deposit || withdrawal;
   const isCredit = deposit > 0;
 
+  Logger.log('Calling applyRules with amount: ' + amount + ', isCredit: ' + isCredit);
+  
   // 1. Try to apply deterministic rules first.
   let result = applyRules(narration, amount, date, fundingAccount, isCredit);
+  Logger.log('applyRules returned: ' + (result ? 'SUCCESS' : 'NULL'));
 
   // 2. If no rule matched, fall back to your existing LLM suggestion logic.
-  if (!result) {
+if (!result) {
     const suggestion = createBasicSuggestion(narration, amount, userContext);
-    const payee = narration.split('/')[1] || narration; // Simple payee extraction
-    const finalEntry = formatLedgerCliEntry(date, payee, suggestion.account, amount, fundingAccount, isCredit);
+    
+    // FIX: Use suggestion.payee instead of generic payee extraction
+    const payee = suggestion.payee || userContext.trim() || 'Misc Expense';
+    
+    const finalEntry = formatLedgerCliEntry(date, payee, suggestion.account, amount, fundingAccount, isCredit, suggestion.tags);
     result = {
       finalEntry: finalEntry,
       tags: suggestion.tags,
@@ -168,11 +200,16 @@ function createBasicSuggestion(narration, amount, userContext) {
 }
 
 function createLLMSuggestion(narration, amount, userContext) {
-  const prompt = `Categorize this transaction into the most appropriate account and suggest tags.
+  const prompt = `Categorize this transaction and suggest a meaningful, properly formatted description.
 
 Transaction: "${narration}"
 Amount: ${amount}
-Context: "${userContext || 'none'}"
+User Context: "${userContext || 'none'}"
+
+Generate a clean, properly capitalized description. Examples:
+- "sbi card payment" → "SBI Card Payment"
+- "bhidu cat boarding" → "Bhidu Cat Boarding"
+- "payment at himachal stay" → "Himachal Stay"
 
 Common accounts:
 - Expenses:Household:Food (food, dining)
@@ -183,7 +220,8 @@ Common accounts:
 - Expenses:Others:Other Charges (default)
 
 Respond with only this JSON format:
-{"account":"Expenses:Household:Food","tags":"food","confidence":0.8}`;
+{"account":"Expenses:Household:Food","payee":"Properly Formatted Name","tags":"food","confidence":0.8}`;
+
 
   try {
     const response = callLLM(prompt, 0.3, 500);
@@ -200,11 +238,12 @@ Respond with only this JSON format:
     }
     
     const parsed = JSON.parse(jsonMatch[0]);
-    return {
-      account: parsed.account || 'Expenses:Others:Other Charges',
-      tags: parsed.tags || 'ai',
-      confidence: Math.min(parsed.confidence || 0.7, 0.95)
-    };
+  return {
+    account: parsed.account || 'Expenses:Others:Other Charges',
+    payee: parsed.payee || userContext.trim() || 'Misc Expense', // ADD fallback
+    tags: parsed.tags || 'ai',
+    confidence: Math.min(parsed.confidence || 0.7, 0.95)
+  };
     
   } catch (error) {
     console.log('LLM processing failed:', error.message);
@@ -213,7 +252,8 @@ Respond with only this JSON format:
 }
 
 function createFallbackSuggestion(narration, amount, userContext) {
-  // Fixed: Convert to string and handle null/undefined values
+  // Use User Context as payee if available
+  const payee = userContext && userContext.trim() ? userContext.trim() : 'Misc Expense';
   const narrationStr = String(narration || '').toLowerCase();
   const userContextStr = String(userContext || '').toLowerCase();
   
@@ -251,7 +291,7 @@ function createFallbackSuggestion(narration, amount, userContext) {
     }
   }
   
-  return { account, tags, confidence };
+  return { account, tags, confidence, payee };
 }
 
 function getAccountList() {
@@ -312,80 +352,166 @@ function testLLMDirectly() {
   }
 }
 
-/**
- * Tries to find a matching rule and generate a complete ledger entry.
- * @returns {object|null} A result object with the final entry, tags, and confidence, or null if no match.
- */
 function applyRules(narration, amount, date, fundingAccount, isCredit) {
+  Logger.log('=== applyRules called ===');
+  Logger.log('Narration: ' + narration);
+  Logger.log('Amount: ' + amount);
+  Logger.log('IsCredit: ' + isCredit);
+  
   const rulesSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Rules');
-  if (!rulesSheet) return null;
+  if (!rulesSheet) {
+    Logger.log('ERROR: Rules sheet not found');
+    return null;
+  }
 
-  const rulesData = rulesSheet.getRange(2, 1, rulesSheet.getLastRow() - 1, 7).getValues();
+  const lastRow = rulesSheet.getLastRow();
+  Logger.log('Rules sheet last row: ' + lastRow);
+  
+  if (lastRow < 2) {
+    Logger.log('ERROR: No data rows in Rules sheet');
+    return null;
+  }
+
+  const rulesData = rulesSheet.getRange(2, 1, lastRow - 1, 8).getValues();
+  Logger.log('Number of rules loaded: ' + rulesData.length);
+  Logger.log('First rule data: ' + JSON.stringify(rulesData[0]));
+  
   const lowerNarration = narration.toLowerCase();
 
-  for (const rule of rulesData) {
-    const isActive = rule[2]; // Active column
-    if (!isActive) continue;
+  for (let ruleIndex = 0; ruleIndex < rulesData.length; ruleIndex++) {
+    const rule = rulesData[ruleIndex];
+    Logger.log('\n--- Processing Rule ' + (ruleIndex + 1) + ' ---');
+    Logger.log('Rule array: ' + JSON.stringify(rule));
+    
+    const [id, priority, isActive, conditionStr, patternStr, actionType, actionValue] = rule;
+  Logger.log('Parsed - ID: ' + id + ', Active: ' + isActive + ', Condition: ' + conditionStr);
+  
+  if (!isActive) {
+    Logger.log('Rule inactive, skipping');
+    continue;
+  }
+  
+  if (!conditionStr || !patternStr || !actionType || !actionValue) {
+    Logger.log('Rule incomplete, skipping');
+    continue;
+  }
 
-    const conditionStr = rule[3], patternStr = String(rule[4]), actionType = rule[5], actionValue = rule[6];
-    if (!conditionStr || !patternStr || !actionType || !actionValue) continue;
+  // FIX: Convert to string and handle null/undefined values
+  const conditionString = String(conditionStr || '');
+  const patternString = String(patternStr || '');
+  
+  const conditions = conditionString.includes(' AND ') 
+    ? conditionString.split(' AND ').map(c => c.trim())
+    : [conditionString.trim()];
+  
+  const patterns = patternString.includes(';') 
+    ? patternString.split(';').map(p => p.trim())
+    : [patternString.trim()];
 
-    const conditions = conditionStr.split(' AND ').map(c => c.trim());
-    const patterns = patternStr.split(';').map(p => p.trim());
-    if (conditions.length !== patterns.length) continue;
+  Logger.log('Conditions: ' + JSON.stringify(conditions));
+  Logger.log('Patterns: ' + JSON.stringify(patterns));
+
+    if (conditions.length !== patterns.length) {
+      Logger.log('Condition/pattern count mismatch, skipping');
+      continue;
+    }
 
     let allConditionsMet = true;
     for (let i = 0; i < conditions.length; i++) {
-      const [field, operator] = conditions[i].split(' ');
+      const condition = conditions[i];
       const currentPattern = patterns[i];
+      
+      Logger.log('Testing condition: ' + condition + ' with pattern: ' + currentPattern);
+      
       let conditionMet = false;
       try {
-        if (field === 'Narration') {
-          if (operator === 'CONTAINS' && lowerNarration.includes(currentPattern.toLowerCase())) conditionMet = true;
-          if (operator === 'REGEX' && new RegExp(currentPattern, 'i').test(narration)) conditionMet = true;
-        } else if (field === 'Amount') {
-          const numPattern = parseFloat(currentPattern);
-          if (operator === '>' && amount > numPattern) conditionMet = true;
-          if (operator === '<' && amount < numPattern) conditionMet = true;
-          if (operator === '==' && amount == numPattern) conditionMet = true;
+        if (condition.startsWith('Narration REGEX')) {
+          conditionMet = new RegExp(currentPattern, 'i').test(narration);
+          Logger.log('REGEX test result: ' + conditionMet);
+        } else if (condition.startsWith('Narration CONTAINS')) {
+          conditionMet = lowerNarration.includes(currentPattern.toLowerCase());
+          Logger.log('CONTAINS test result: ' + conditionMet);
+        } else if (condition.startsWith('Amount ==')) {
+          conditionMet = amount == parseFloat(currentPattern);
+          Logger.log('Amount == test result: ' + conditionMet);
+        } else if (condition.startsWith('Amount >')) {
+          conditionMet = amount > parseFloat(currentPattern);
+          Logger.log('Amount > test result: ' + conditionMet);
+        } else if (condition.startsWith('Amount <')) {
+          conditionMet = amount < parseFloat(currentPattern);
+          Logger.log('Amount < test result: ' + conditionMet);
         }
-      } catch (e) { console.error(`Rule Error ID ${rule[0]}: ${e}`); }
-      if (!conditionMet) { allConditionsMet = false; break; }
+      } catch (e) { 
+        Logger.log('Rule Error ID ' + id + ': ' + e.message);
+      }
+      
+      if (!conditionMet) { 
+        allConditionsMet = false; 
+        Logger.log('Condition failed, rule rejected');
+        break; 
+      }
     }
 
     if (allConditionsMet) {
+      Logger.log('All conditions met! Processing action...');
       try {
-        const params = JSON.parse(actionValue);
+        const cleanActionValue = actionValue.replace(/'/g, '"');
+        Logger.log('Clean action value: ' + cleanActionValue);
+        const params = JSON.parse(cleanActionValue);
+        Logger.log('Parsed params: ' + JSON.stringify(params));
+        
         let finalEntry;
         if (actionType === 'CREATE_ENTRY') {
-          finalEntry = formatLedgerCliEntry(date, params.payee || narration, params.account, amount, fundingAccount, isCredit);
-        } else if (actionType === 'CREATE_TRANSFER') {
-          finalEntry = formatLedgerCliEntry(date, params.payee || narration, params.to_account, amount, fundingAccount, false);
-        } else { continue; }
+  finalEntry = formatLedgerCliEntry(date, params.payee || narration, params.account, amount, fundingAccount, isCredit, params.tags);
+} else if (actionType === 'CREATE_TRANSFER') {
+  finalEntry = formatLedgerCliEntry(date, params.payee || narration, params.to_account, amount, fundingAccount, false, params.tags);
+}
 
-        return { finalEntry, tags: params.tags || '', confidence: 1.0 };
-      } catch (e) { console.error(`Rule Action Error ID ${rule[0]}: ${e}`); return null; }
+        Logger.log('Generated entry: ' + finalEntry);
+        return { 
+          finalEntry, 
+          tags: params.tags || '', 
+          confidence: 1.0 
+        };
+      } catch (e) { 
+        Logger.log('Rule Action Error ID ' + id + ': ' + e.message);
+        return null; 
+      }
     }
   }
-  return null; // No rule matched
+  
+  Logger.log('No rules matched');
+  return null;
 }
 
 /**
  * Formats a standard, two-posting ledger entry in the ledger-cli style.
  * @returns {string} The formatted, multi-line ledger entry.
  */
-function formatLedgerCliEntry(date, payee, targetAccount, amount, fundingAccount, isCredit) {
+function formatLedgerCliEntry(date, payee, targetAccount, amount, fundingAccount, isCredit, tags) {
   const yyyy = date.getFullYear();
   const mm = String(date.getMonth() + 1).padStart(2, '0');
   const dd = String(date.getDate()).padStart(2, '0');
   const formattedDate = `${yyyy}/${mm}/${dd}`;
   const formattedAmount = `₹${amount.toFixed(2)}`;
 
+  // Build the entry with tags as comment
+  let entry = `${formattedDate} ${payee}`;
+  
+  // Add tags as individual comments if provided
+  if (tags && tags.trim()) {
+    const tagArray = tags.split(',').map(tag => tag.trim());
+    const tagComments = tagArray.map(tag => `;${tag}`).join(' ');
+    entry += `\n    ${tagComments}`;
+  }
+
   if (isCredit) {
     // Income: Money flows TO the funding account FROM the target account
-    return `${formattedDate} ${payee}\n    ${fundingAccount}    ${formattedAmount}\n    ${targetAccount}`;
+    entry += `\n    ${fundingAccount}    ${formattedAmount}\n    ${targetAccount}`;
   } else {
-    // Expense/Transfer: Money flows FROM the funding account TO the target account
-    return `${formattedDate} ${payee}\n    ${targetAccount}    ${formattedAmount}\n    ${fundingAccount}`;
+    // Expense/Transfer: Money flows FROM the funding account TO the target account  
+    entry += `\n    ${targetAccount}    ${formattedAmount}\n    ${fundingAccount}`;
   }
+
+  return entry;
 }

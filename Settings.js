@@ -1,5 +1,6 @@
 function openSettings() {
-  const html = HtmlService.createHtmlOutput(`
+  const html = HtmlService.createHtmlOutput(
+    `
     <style>
       body { font-family: Google Sans, Arial, sans-serif; padding: 20px; }
       .provider-section { margin-bottom: 20px; padding: 15px; border: 1px solid #e0e0e0; border-radius: 8px; }
@@ -56,6 +57,7 @@ function openSettings() {
     <div id="status"></div>
     
     <script>
+    let isLoadingModels = false;
       const providers = {
         requesty: {
           name: "Requesty AI",
@@ -70,47 +72,67 @@ function openSettings() {
       };
       
       function updateProvider() {
-        const provider = document.getElementById('provider').value;
-        const configDiv = document.getElementById('providerConfig');
-        const modelSection = document.getElementById('modelSection');
-        const customUrlSection = document.getElementById('customUrlSection');
-        
-        if (provider) {
-          configDiv.style.display = 'block';
-          
-          if (provider === 'gemini') {
-            // Show models immediately for Gemini
-            populateModels(providers[provider].models);
-            modelSection.style.display = 'block';
-            customUrlSection.style.display = 'block';
-          } else if (provider === 'requesty') {
-            // Hide models until API key is provided
-            modelSection.style.display = 'none';
-            customUrlSection.style.display = 'block';
-          }
-          
-          // Load saved settings
-          google.script.run.withSuccessHandler(loadSavedSettings).getSettings();
-        } else {
-          configDiv.style.display = 'none';
-        }
-      }
+  const provider = document.getElementById('provider').value;
+  const configDiv = document.getElementById('providerConfig');
+  const modelSection = document.getElementById('modelSection');
+  const customUrlSection = document.getElementById('customUrlSection');
+  
+  if (provider) {
+    configDiv.style.display = 'block';
+    customUrlSection.style.display = 'block';
+    
+    if (provider === 'gemini') {
+      // Show model section but don't populate until API key is provided
+      modelSection.style.display = 'block';
+      const modelSelect = document.getElementById('model');
+      modelSelect.innerHTML = '<option value="">Enter API key to load models...</option>';
+    } else if (provider === 'requesty') {
+      modelSection.style.display = 'block';
+      const modelSelect = document.getElementById('model');
+      modelSelect.innerHTML = '<option value="">Enter API key to load models...</option>';
+    }
+  } else {
+    configDiv.style.display = 'none';
+  }
+}
+
+function onApiKeyChange() {
+  const provider = document.getElementById('provider').value;
+  const apiKey = document.getElementById('apiKey').value;
+  
+  if (apiKey.trim() && document.hasFocus()) {
+    if (provider === 'requesty') {
+      fetchModelsForRequesty(apiKey.trim(), null);
+    } else if (provider === 'gemini') {
+      fetchModelsForGemini(apiKey.trim(), null);
+    }
+  }
+}
+
+function fetchModelsForGemini(apiKey, selectedModel) {
+  if (isLoadingModels) return;
+  
+  isLoadingModels = true;
+  showStatus('Loading Gemini models...', 'info');
+  
+  google.script.run
+    .withSuccessHandler(function(models) {
+      isLoadingModels = false;
+      populateModels(models);
+      document.getElementById('modelSection').style.display = 'block';
       
-      function onApiKeyChange() {
-        const provider = document.getElementById('provider').value;
-        const apiKey = document.getElementById('apiKey').value;
-        
-        if (provider === 'requesty' && apiKey.trim()) {
-          // Fetch models for Requesty
-          showStatus('Fetching available models...', 'info');
-          document.getElementById('modelSection').style.display = 'none';
-          
-          google.script.run
-            .withSuccessHandler(onModelsFetched)
-            .withFailureHandler(onModelsFetchError)
-            .fetchRequestyModels(apiKey.trim());
-        }
+      if (selectedModel) {
+        document.getElementById('model').value = selectedModel;
       }
+      showStatus('Gemini models loaded successfully!', 'success');
+    })
+    .withFailureHandler(function(error) {
+      isLoadingModels = false;
+      showStatus('Failed to load Gemini models: ' + error, 'error');
+    })
+    .fetchGeminiModels(apiKey);
+}
+    
       
       function onModelsFetched(models) {
         if (models && models.length > 0) {
@@ -139,25 +161,55 @@ function openSettings() {
         });
       }
       
-      function loadSavedSettings(settings) {
-        if (settings.provider) {
-          document.getElementById('provider').value = settings.provider;
-          updateProvider();
-          document.getElementById('apiKey').value = settings.apiKey || '';
-          document.getElementById('customBaseUrl').value = settings.customBaseUrl || '';
-          
-          // If Requesty and has API key, fetch models
-          if (settings.provider === 'requesty' && settings.apiKey) {
-            onApiKeyChange();
-            // Set model after a short delay to allow models to load
-            setTimeout(() => {
-              document.getElementById('model').value = settings.model || '';
-            }, 1000);
-          } else if (settings.provider === 'gemini') {
-            document.getElementById('model').value = settings.model || '';
-          }
-        }
+function loadSavedSettings(settings) {
+  if (settings && settings.provider) {
+    document.getElementById('provider').value = settings.provider;
+    document.getElementById('apiKey').value = settings.apiKey || '';
+    document.getElementById('customBaseUrl').value = settings.customBaseUrl || '';
+    
+    updateProvider();
+    
+    setTimeout(() => {
+      if (settings.provider === 'gemini' && settings.apiKey) {
+        fetchModelsForGemini(settings.apiKey, settings.model);
+      } else if (settings.provider === 'requesty' && settings.apiKey) {
+        fetchModelsForRequesty(settings.apiKey, settings.model);
       }
+    }, 100);
+  } else {
+    document.getElementById('provider').value = 'gemini';
+    updateProvider();
+  }
+}
+
+function fetchModelsForRequesty(apiKey, selectedModel) {
+  if (isLoadingModels) {
+    return; // Already loading, don't start another fetch
+  }
+  
+  isLoadingModels = true;
+  showStatus('Loading models...', 'info');
+  
+  google.script.run
+    .withSuccessHandler(function(models) {
+      isLoadingModels = false;
+      populateModels(models);
+      document.getElementById('modelSection').style.display = 'block';
+      
+      if (selectedModel) {
+        document.getElementById('model').value = selectedModel;
+      }
+      showStatus('Models loaded successfully!', 'success');
+    })
+    .withFailureHandler(function(error) {
+      isLoadingModels = false;
+      showStatus('Failed to load models: ' + error, 'error');
+      const modelSelect = document.getElementById('model');
+      modelSelect.innerHTML = '<option value="' + (selectedModel || '') + '">' + (selectedModel || 'Failed to load models') + '</option>';
+      document.getElementById('modelSection').style.display = 'block';
+    })
+    .fetchRequestyModels(apiKey);
+}
       
       function saveSettings() {
         const settings = {
@@ -191,73 +243,116 @@ function openSettings() {
         statusDiv.innerHTML = '<div class="status ' + type + '">' + message + '</div>';
       }
       
-      // Load settings on page load
-      google.script.run.withSuccessHandler(loadSavedSettings).getSettings();
+      window.onload = function() {
+  google.script.run.withSuccessHandler(loadSavedSettings).getSettings();
+};
     </script>
-  `)
-  .setWidth(500)
-  .setHeight(600);
-  
-  SpreadsheetApp.getUi().showModalDialog(html, '⚙️ Settings');
+  `
+  )
+    .setWidth(500)
+    .setHeight(600);
+
+  SpreadsheetApp.getUi().showModalDialog(html, "⚙️ Settings");
 }
 
 function fetchRequestyModels(apiKey) {
-  const baseUrl = 'https://router.requesty.ai/v1';
-  
+  const baseUrl = "https://router.requesty.ai/v1";
+
   const options = {
-    method: 'GET',
+    method: "GET",
     headers: {
-      'Authorization': 'Bearer ' + apiKey,
-      'Content-Type': 'application/json'
-    }
+      Authorization: "Bearer " + apiKey,
+      "Content-Type": "application/json",
+    },
   };
-  
+
   try {
-    const response = UrlFetchApp.fetch(baseUrl + '/models', options);
+    const response = UrlFetchApp.fetch(baseUrl + "/models", options);
     const data = JSON.parse(response.getContentText());
-    
+
     if (data.error) {
-      throw new Error(data.error.message || 'API Error');
+      throw new Error(data.error.message || "API Error");
     }
-    
+
     // OpenAI-compatible format: {"data": [{"id": "model-name"}, ...]}
     if (data.data && Array.isArray(data.data)) {
-      return data.data.map(model => model.id).sort();
+      return data.data.map((model) => model.id).sort();
     }
-    
+
     return [];
   } catch (error) {
-    throw new Error('Failed to fetch models: ' + error.message);
+    throw new Error("Failed to fetch models: " + error.message);
   }
 }
 
 function getSettings() {
   const properties = PropertiesService.getScriptProperties();
   return {
-    provider: properties.getProperty('LLM_PROVIDER'),
-    model: properties.getProperty('LLM_MODEL'), 
-    apiKey: properties.getProperty('LLM_API_KEY'),
-    customBaseUrl: properties.getProperty('LLM_BASE_URL')
+    provider: properties.getProperty("LLM_PROVIDER"),
+    model: properties.getProperty("LLM_MODEL"),
+    apiKey: properties.getProperty("LLM_API_KEY"),
+    customBaseUrl: properties.getProperty("LLM_BASE_URL"),
   };
 }
 
 function saveSettings(settings) {
   const properties = PropertiesService.getScriptProperties();
   properties.setProperties({
-    'LLM_PROVIDER': settings.provider,
-    'LLM_MODEL': settings.model,
-    'LLM_API_KEY': settings.apiKey,
-    'LLM_BASE_URL': settings.customBaseUrl || ''
+    LLM_PROVIDER: settings.provider,
+    LLM_MODEL: settings.model,
+    LLM_API_KEY: settings.apiKey,
+    LLM_BASE_URL: settings.customBaseUrl || "",
   });
 }
 
 function testLLMConnection() {
   const settings = getSettings();
   if (!settings.provider || !settings.apiKey) {
-    throw new Error('Please configure LLM settings first');
+    throw new Error("Please configure LLM settings first");
   }
-  
+
   // Simple test call
   const result = callLLM("Test message", 0.1, 10);
   return result;
+}
+
+function fetchGeminiModels(apiKey) {
+  const baseUrl = "https://generativelanguage.googleapis.com/v1beta";
+
+  const options = {
+    method: "GET",
+    headers: {
+      "Content-Type": "application/json",
+    },
+  };
+
+  try {
+    const response = UrlFetchApp.fetch(
+      `${baseUrl}/models?key=${apiKey}`,
+      options
+    );
+    const data = JSON.parse(response.getContentText());
+
+    if (data.error) {
+      throw new Error(data.error.message || "API Error");
+    }
+
+    // Filter models that support generateContent
+    if (data.models && Array.isArray(data.models)) {
+      const generateContentModels = data.models
+        .filter(
+          (model) =>
+            model.supportedGenerationMethods &&
+            model.supportedGenerationMethods.includes("generateContent")
+        )
+        .map((model) => model.name.replace("models/", "")) // Remove 'models/' prefix
+        .sort();
+
+      return generateContentModels;
+    }
+
+    return [];
+  } catch (error) {
+    throw new Error("Failed to fetch Gemini models: " + error.message);
+  }
 }

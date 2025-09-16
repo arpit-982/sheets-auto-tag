@@ -7,6 +7,10 @@ function onOpen() {
     .addItem('📍 Process Selected Rows', 'processSelectedRows') 
     .addItem('🎯 Process Current Row', 'processCurrentRow')
     .addSeparator()
+    .addItem('➕ Create Rule from Selection', 'createRuleFromSelection')  // NEW
+    .addItem('📝 Create New Rule', 'createNewRule')                      // NEW
+    .addItem('✏️ Edit Rule', 'editExistingRule')                         // NEW
+    .addSeparator()
     .addItem('📋 Export All to Clipboard', 'exportAllToClipboard')
     .addItem('📋 Export Selected to Clipboard', 'exportSelectedToClipboard')
     .addSeparator()
