@@ -3,9 +3,7 @@ function onOpen() {
   ui.createMenu('Ledger Tools')
     .addItem('🔧 Initialize Plugin', 'initializePlugin')
     .addSeparator()
-    .addItem('⚡ Process All Rows', 'processAllRows')
-    .addItem('📍 Process Selected Rows', 'processSelectedRows') 
-    .addItem('🎯 Process Current Row', 'processCurrentRow')
+    .addItem('🔄 Process Transactions', 'openProcessingDialog')
     .addSeparator()
     .addItem('➕ Create Rule from Selection', 'createRuleFromSelection')  // NEW
     .addItem('📝 Create New Rule', 'createNewRule')                      // NEW

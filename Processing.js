@@ -1,3 +1,281 @@
+function openProcessingDialog() {
+  const html = HtmlService.createHtmlOutput(`
+    <style>
+      body {
+        font-family: Google Sans, Arial, sans-serif;
+        padding: 20px;
+        margin: 0;
+        background: #f8f9fa;
+      }
+      .dialog-container {
+        background: white;
+        border-radius: 8px;
+        padding: 20px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+      }
+      .section {
+        margin-bottom: 24px;
+        padding-bottom: 20px;
+        border-bottom: 1px solid #e8eaed;
+      }
+      .section:last-child {
+        border-bottom: none;
+        margin-bottom: 0;
+      }
+      .section-title {
+        font-weight: 500;
+        font-size: 16px;
+        color: #202124;
+        margin-bottom: 16px;
+      }
+      .radio-group {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+      .radio-option {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        cursor: pointer;
+        padding: 8px;
+        border-radius: 4px;
+        transition: background 0.2s;
+      }
+      .radio-option:hover {
+        background: #f1f3f4;
+      }
+      .radio-option input[type="radio"] {
+        margin: 0;
+        cursor: pointer;
+      }
+      .radio-option label {
+        cursor: pointer;
+        color: #3c4043;
+        font-size: 14px;
+      }
+      .checkbox-option {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 12px;
+      }
+      .checkbox-option input[type="checkbox"] {
+        margin: 0;
+        cursor: pointer;
+      }
+      .checkbox-option label {
+        cursor: pointer;
+        color: #3c4043;
+        font-size: 14px;
+      }
+      .threshold-input {
+        margin-left: 24px;
+        margin-top: 8px;
+      }
+      .threshold-input input {
+        width: 80px;
+        padding: 6px 8px;
+        border: 1px solid #dadce0;
+        border-radius: 4px;
+        font-size: 14px;
+      }
+      .buttons {
+        display: flex;
+        gap: 12px;
+        justify-content: flex-end;
+        margin-top: 24px;
+        padding-top: 20px;
+        border-top: 1px solid #e8eaed;
+      }
+      .btn {
+        padding: 8px 16px;
+        border: none;
+        border-radius: 4px;
+        font-size: 14px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: background 0.2s;
+      }
+      .btn-cancel {
+        background: #f8f9fa;
+        color: #3c4043;
+        border: 1px solid #dadce0;
+      }
+      .btn-cancel:hover {
+        background: #f1f3f4;
+      }
+      .btn-run {
+        background: #1a73e8;
+        color: white;
+      }
+      .btn-run:hover {
+        background: #1557b0;
+      }
+      .btn:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+      }
+    </style>
+
+    <div class="dialog-container">
+      <div class="section">
+        <div class="section-title">Process Transactions</div>
+        <div class="radio-group">
+          <div class="radio-option">
+            <input type="radio" id="allRows" name="rowScope" value="all">
+            <label for="allRows">Process all rows</label>
+          </div>
+          <div class="radio-option">
+            <input type="radio" id="selectedRows" name="rowScope" value="selected" checked>
+            <label for="selectedRows">Process selected rows</label>
+          </div>
+          <div class="radio-option">
+            <input type="radio" id="currentRow" name="rowScope" value="current">
+            <label for="currentRow">Process current row</label>
+          </div>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="radio-group">
+          <div class="radio-option">
+            <input type="radio" id="rulesOnly" name="processingMode" value="rules">
+            <label for="rulesOnly">Use Rules only</label>
+          </div>
+          <div class="radio-option">
+            <input type="radio" id="rulesLlm" name="processingMode" value="rules_llm" checked>
+            <label for="rulesLlm">Use Rules + LLM</label>
+          </div>
+          <div class="radio-option">
+            <input type="radio" id="llmOnly" name="processingMode" value="llm_only">
+            <label for="llmOnly">Use LLM Only</label>
+          </div>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="checkbox-option">
+          <input type="checkbox" id="ignoreHighConfidence">
+          <label for="ignoreHighConfidence">Ignore entries with confidence value more than</label>
+        </div>
+        <div class="threshold-input">
+          <input type="number" id="confidenceThreshold" value="0.85" min="0" max="1" step="0.01" disabled>
+        </div>
+      </div>
+
+      <div class="buttons">
+        <button class="btn btn-cancel" onclick="google.script.host.close()">Cancel</button>
+        <button class="btn btn-run" onclick="runProcessing()">Run</button>
+      </div>
+    </div>
+
+    <script>
+      // Enable/disable threshold input based on checkbox
+      document.getElementById('ignoreHighConfidence').addEventListener('change', function() {
+        const thresholdInput = document.getElementById('confidenceThreshold');
+        thresholdInput.disabled = !this.checked;
+      });
+
+      // Validate threshold input
+      document.getElementById('confidenceThreshold').addEventListener('input', function() {
+        const value = parseFloat(this.value);
+        if (isNaN(value) || value < 0 || value > 1) {
+          this.setCustomValidity('Value must be between 0.00 and 1.00');
+        } else {
+          this.setCustomValidity('');
+        }
+      });
+
+      function runProcessing() {
+        // Get form values
+        const rowScope = document.querySelector('input[name="rowScope"]:checked').value;
+        const processingMode = document.querySelector('input[name="processingMode"]:checked').value;
+        const ignoreHighConfidence = document.getElementById('ignoreHighConfidence').checked;
+        const confidenceThreshold = parseFloat(document.getElementById('confidenceThreshold').value);
+
+        // Validate threshold if confidence filtering is enabled
+        if (ignoreHighConfidence && (isNaN(confidenceThreshold) || confidenceThreshold < 0 || confidenceThreshold > 1)) {
+          alert('Confidence threshold must be between 0.00 and 1.00');
+          return;
+        }
+
+        // Disable run button to prevent double-clicks
+        document.querySelector('.btn-run').disabled = true;
+        document.querySelector('.btn-run').textContent = 'Processing...';
+
+        // Call the processing function
+        google.script.run
+          .withSuccessHandler(function() {
+            google.script.host.close();
+          })
+          .withFailureHandler(function(error) {
+            alert('Processing failed: ' + error);
+            document.querySelector('.btn-run').disabled = false;
+            document.querySelector('.btn-run').textContent = 'Run';
+          })
+          .processWithOptions(rowScope, processingMode, ignoreHighConfidence, confidenceThreshold);
+      }
+    </script>
+  `)
+    .setWidth(400)
+    .setHeight(500)
+    .setTitle('Process Transactions');
+
+  SpreadsheetApp.getUi().showSidebar(html);
+}
+
+function processWithOptions(rowScope, processingMode, ignoreHighConfidence, confidenceThreshold) {
+  const sheet = SpreadsheetApp.getActiveSheet();
+
+  let startRow, endRow;
+
+  // Determine row range based on scope
+  switch (rowScope) {
+    case 'all':
+      startRow = 5; // Data starts at row 5
+      endRow = sheet.getLastRow();
+      if (endRow < startRow) {
+        SpreadsheetApp.getUi().alert('No data rows found to process.');
+        return;
+      }
+      break;
+
+    case 'selected':
+      const selection = sheet.getActiveRange();
+      const selectionStartRow = selection.getRow();
+      const numRows = selection.getNumRows();
+      startRow = Math.max(selectionStartRow, 5); // Data starts at row 5
+      endRow = Math.min(startRow + numRows - 1, sheet.getLastRow());
+
+      if (startRow > sheet.getLastRow()) {
+        SpreadsheetApp.getUi().alert('No data rows selected to process.');
+        return;
+      }
+      break;
+
+    case 'current':
+      const activeRange = sheet.getActiveRange();
+      const currentRow = activeRange.getRow();
+
+      if (currentRow < 5) { // Data starts at row 5
+        SpreadsheetApp.getUi().alert('Please select a transaction row (not header or metadata)');
+        return;
+      }
+
+      startRow = currentRow;
+      endRow = currentRow;
+      break;
+
+    default:
+      SpreadsheetApp.getUi().alert('Invalid row scope selected.');
+      return;
+  }
+
+  // Call the enhanced processRowRange function
+  processRowRange(sheet, startRow, endRow, processingMode, ignoreHighConfidence, confidenceThreshold);
+}
+
 function processAllRows() {
   const sheet = SpreadsheetApp.getActiveSheet();
   const lastRow = sheet.getLastRow();
@@ -41,7 +319,7 @@ function processCurrentRow() {
   processRowRange(sheet, currentRow, currentRow);
 }
 
-function processRowRange(sheet, startRow, endRow) {
+function processRowRange(sheet, startRow, endRow, processingMode = 'rules_llm', ignoreHighConfidence = false, confidenceThreshold = 0.85) {
   try {
     Logger.log('=== processRowRange called ===');
     Logger.log('Processing rows ' + startRow + ' to ' + endRow);
@@ -63,6 +341,7 @@ function processRowRange(sheet, startRow, endRow) {
     }
     
     let processedCount = 0;
+    let skippedCount = 0;
     const totalRows = endRow - startRow + 1;
     
     // Show initial toast
@@ -77,12 +356,23 @@ function processRowRange(sheet, startRow, endRow) {
       // Skip empty rows (no Sr No)
       if (!row[colIndices.srNo]) {
         Logger.log('Skipping row ' + rowNum + ' - no Sr No');
+        skippedCount++;
         continue;
       }
-      
+
+      // Check confidence filtering
+      if (ignoreHighConfidence && colIndices.confidence !== undefined) {
+        const existingConfidence = parseFloat(row[colIndices.confidence] || 0);
+        if (!isNaN(existingConfidence) && existingConfidence > confidenceThreshold) {
+          Logger.log('Skipping row ' + rowNum + ' - confidence ' + existingConfidence + ' > threshold ' + confidenceThreshold);
+          skippedCount++;
+          continue;
+        }
+      }
+
       // Process the transaction with funding account
       Logger.log('Calling processTransaction for row ' + rowNum);
-      const result = processTransaction(row, colIndices, fundingAccount);
+      const result = processTransaction(row, colIndices, fundingAccount, processingMode);
       Logger.log('processTransaction returned: ' + JSON.stringify(result));
       
       // Update the row with results
@@ -93,10 +383,19 @@ function processRowRange(sheet, startRow, endRow) {
       processedCount++;
     }
     
-    Logger.log('Completed processing ' + processedCount + ' rows');
-    
-    SpreadsheetApp.getActiveSpreadsheet().toast(`Completed! Processed ${processedCount}/${totalRows} rows`, 'Ledger Tools', 5);
-    SpreadsheetApp.getUi().alert(`✅ Processed ${processedCount} transactions in rows ${startRow} to ${endRow}`);
+    Logger.log('Completed processing ' + processedCount + ' rows, skipped ' + skippedCount + ' rows');
+
+    const statusMessage = skippedCount > 0
+      ? `Completed! Processed ${processedCount}/${totalRows} rows (${skippedCount} skipped)`
+      : `Completed! Processed ${processedCount}/${totalRows} rows`;
+
+    SpreadsheetApp.getActiveSpreadsheet().toast(statusMessage, 'Ledger Tools', 5);
+
+    const alertMessage = skippedCount > 0
+      ? `✅ Processed ${processedCount} transactions, skipped ${skippedCount} (confidence filter or empty rows)`
+      : `✅ Processed ${processedCount} transactions in rows ${startRow} to ${endRow}`;
+
+    SpreadsheetApp.getUi().alert(alertMessage);
     
   } catch (error) {
     SpreadsheetApp.getUi().alert('❌ Error processing transactions: ' + error.message);
@@ -145,7 +444,7 @@ function getColumnIndices(headers) {
  * It tries the rule engine first, then falls back to the LLM.
  * @returns {object} An object with {tags, confidence, finalEntry}.
  */
-function processTransaction(row, colIndices, fundingAccount) {
+function processTransaction(row, colIndices, fundingAccount, processingMode = 'rules_llm') {
   Logger.log('=== processTransaction called ===');
   
   const narration = String(row[colIndices.narration] || '');
@@ -169,25 +468,75 @@ function processTransaction(row, colIndices, fundingAccount) {
   const amount = deposit || withdrawal;
   const isCredit = deposit > 0;
 
-  Logger.log('Calling applyRules with amount: ' + amount + ', isCredit: ' + isCredit);
-  
-  // 1. Try to apply deterministic rules first.
-  let result = applyRules(narration, amount, date, fundingAccount, isCredit, userContext);
-  Logger.log('applyRules returned: ' + (result ? 'SUCCESS' : 'NULL'));
+  Logger.log('Processing mode: ' + processingMode);
 
-  // 2. If no rule matched, fall back to your existing LLM suggestion logic.
-if (!result) {
-    const suggestion = createBasicSuggestion(narration, amount, userContext);
-    
-    // FIX: Use suggestion.payee instead of generic payee extraction
-    const payee = suggestion.payee || userContext.trim() || 'Misc Expense';
-    
-    const finalEntry = formatLedgerCliEntry(date, payee, suggestion.account, amount, fundingAccount, isCredit, suggestion.tags, null, userContext, narration);
-    result = {
-      finalEntry: finalEntry,
-      tags: suggestion.tags,
-      confidence: suggestion.confidence
-    };
+  let result = null;
+
+  // Handle different processing modes
+  switch (processingMode) {
+    case 'rules':
+      // Rules only - no LLM fallback
+      Logger.log('Calling applyRules (rules only mode)');
+      result = applyRules(narration, amount, date, fundingAccount, isCredit, userContext);
+      Logger.log('applyRules returned: ' + (result ? 'SUCCESS' : 'NULL'));
+
+      if (!result) {
+        // Return empty result if no rule matches in rules-only mode
+        result = { tags: "", confidence: "", finalEntry: "" };
+      }
+      break;
+
+    case 'rules_llm':
+      // Rules first, then LLM fallback (current behavior)
+      Logger.log('Calling applyRules (rules + LLM mode)');
+      result = applyRules(narration, amount, date, fundingAccount, isCredit, userContext);
+      Logger.log('applyRules returned: ' + (result ? 'SUCCESS' : 'NULL'));
+
+      if (!result) {
+        Logger.log('No rule matched, falling back to LLM');
+        const suggestion = createBasicSuggestion(narration, amount, userContext);
+
+        const payee = suggestion.payee || userContext.trim() || 'Misc Expense';
+
+        const finalEntry = formatLedgerCliEntry(date, payee, suggestion.account, amount, fundingAccount, isCredit, suggestion.tags, null, userContext, narration);
+        result = {
+          finalEntry: finalEntry,
+          tags: suggestion.tags,
+          confidence: suggestion.confidence
+        };
+      }
+      break;
+
+    case 'llm_only':
+      // LLM only - skip rules entirely
+      Logger.log('Using LLM only mode');
+      const suggestion = createBasicSuggestion(narration, amount, userContext);
+
+      const payee = suggestion.payee || userContext.trim() || 'Misc Expense';
+
+      const finalEntry = formatLedgerCliEntry(date, payee, suggestion.account, amount, fundingAccount, isCredit, suggestion.tags, null, userContext, narration);
+      result = {
+        finalEntry: finalEntry,
+        tags: suggestion.tags,
+        confidence: suggestion.confidence
+      };
+      break;
+
+    default:
+      Logger.log('Unknown processing mode: ' + processingMode + ', falling back to rules_llm');
+      // Fallback to rules_llm if unknown mode
+      result = applyRules(narration, amount, date, fundingAccount, isCredit, userContext);
+      if (!result) {
+        const suggestion = createBasicSuggestion(narration, amount, userContext);
+        const payee = suggestion.payee || userContext.trim() || 'Misc Expense';
+        const finalEntry = formatLedgerCliEntry(date, payee, suggestion.account, amount, fundingAccount, isCredit, suggestion.tags, null, userContext, narration);
+        result = {
+          finalEntry: finalEntry,
+          tags: suggestion.tags,
+          confidence: suggestion.confidence
+        };
+      }
+      break;
   }
 
   return result;
