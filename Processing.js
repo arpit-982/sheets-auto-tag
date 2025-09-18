@@ -172,7 +172,7 @@ function processTransaction(row, colIndices, fundingAccount) {
   Logger.log('Calling applyRules with amount: ' + amount + ', isCredit: ' + isCredit);
   
   // 1. Try to apply deterministic rules first.
-  let result = applyRules(narration, amount, date, fundingAccount, isCredit);
+  let result = applyRules(narration, amount, date, fundingAccount, isCredit, userContext);
   Logger.log('applyRules returned: ' + (result ? 'SUCCESS' : 'NULL'));
 
   // 2. If no rule matched, fall back to your existing LLM suggestion logic.
@@ -182,7 +182,7 @@ if (!result) {
     // FIX: Use suggestion.payee instead of generic payee extraction
     const payee = suggestion.payee || userContext.trim() || 'Misc Expense';
     
-    const finalEntry = formatLedgerCliEntry(date, payee, suggestion.account, amount, fundingAccount, isCredit, suggestion.tags);
+    const finalEntry = formatLedgerCliEntry(date, payee, suggestion.account, amount, fundingAccount, isCredit, suggestion.tags, null, userContext);
     result = {
       finalEntry: finalEntry,
       tags: suggestion.tags,
@@ -373,7 +373,7 @@ function testLLMDirectly() {
   }
 }
 
-function applyRules(narration, amount, date, fundingAccount, isCredit) {
+function applyRules(narration, amount, date, fundingAccount, isCredit, userContext = '') {
   Logger.log('=== applyRules called ===');
   Logger.log('Narration: ' + narration);
   Logger.log('Amount: ' + amount);
@@ -483,10 +483,10 @@ function applyRules(narration, amount, date, fundingAccount, isCredit) {
         
         let finalEntry;
         if (actionType === 'CREATE_ENTRY') {
-  finalEntry = formatLedgerCliEntry(date, params.payee || narration, params.account, amount, fundingAccount, isCredit, params.tags);
-} else if (actionType === 'CREATE_TRANSFER') {
-  finalEntry = formatLedgerCliEntry(date, params.payee || narration, params.to_account, amount, fundingAccount, false, params.tags);
-}
+          finalEntry = formatLedgerCliEntry(date, params.payee || narration, params.account, amount, fundingAccount, isCredit, params.tags, params, userContext);
+        } else if (actionType === 'CREATE_TRANSFER') {
+          finalEntry = formatLedgerCliEntry(date, params.payee || narration, params.to_account, amount, fundingAccount, false, params.tags, params, userContext);
+        }
 
         Logger.log('Generated entry: ' + finalEntry);
         return { 
@@ -506,19 +506,32 @@ function applyRules(narration, amount, date, fundingAccount, isCredit) {
 }
 
 /**
- * Formats a standard, two-posting ledger entry in the ledger-cli style.
+ * Formats a ledger entry in the ledger-cli style, supporting both simple and split transactions.
  * @returns {string} The formatted, multi-line ledger entry.
  */
-function formatLedgerCliEntry(date, payee, targetAccount, amount, fundingAccount, isCredit, tags) {
+function formatLedgerCliEntry(date, payee, targetAccount, amount, fundingAccount, isCredit, tags, actionData = null, userContext = null) {
   const yyyy = date.getFullYear();
   const mm = String(date.getMonth() + 1).padStart(2, '0');
   const dd = String(date.getDate()).padStart(2, '0');
   const formattedDate = `${yyyy}/${mm}/${dd}`;
-  const formattedAmount = `₹${amount.toFixed(2)}`;
+  const totalAmount = Math.abs(amount);
 
-  // Build the entry with tags as comment
+  // Check if this is a split transaction
+  if (actionData && actionData.split_type && actionData.split_type !== 'none') {
+    return generateSplitLedgerEntry(formattedDate, payee, targetAccount, totalAmount, fundingAccount, isCredit, tags, actionData, userContext);
+  }
+
+  // Standard non-split entry
+  const formattedAmount = `₹${totalAmount.toFixed(2)}`;
+
+  // Build the entry with comments
   let entry = `${formattedDate} ${payee}`;
-  
+
+  // Add user context as first comment if enabled
+  if (actionData && actionData.include_user_context && userContext && userContext.trim()) {
+    entry += `\n    ;${userContext.trim()}`;
+  }
+
   // Add tags as individual comments if provided
   if (tags && tags.trim()) {
     const tagArray = tags.split(',').map(tag => tag.trim());
@@ -530,8 +543,83 @@ function formatLedgerCliEntry(date, payee, targetAccount, amount, fundingAccount
     // Income: Money flows TO the funding account FROM the target account
     entry += `\n    ${fundingAccount}    ${formattedAmount}\n    ${targetAccount}`;
   } else {
-    // Expense/Transfer: Money flows FROM the funding account TO the target account  
+    // Expense/Transfer: Money flows FROM the funding account TO the target account
     entry += `\n    ${targetAccount}    ${formattedAmount}\n    ${fundingAccount}`;
+  }
+
+  return entry;
+}
+
+function generateSplitLedgerEntry(formattedDate, payee, targetAccount, totalAmount, fundingAccount, isCredit, tags, actionData, userContext = null) {
+  // Build the entry with comments
+  let entry = `${formattedDate} ${payee}`;
+
+  // Add user context as first comment if enabled
+  if (actionData && actionData.include_user_context && userContext && userContext.trim()) {
+    entry += `\n    ;${userContext.trim()}`;
+  }
+
+  // Add tags as individual comments if provided
+  if (tags && tags.trim()) {
+    const tagArray = tags.split(',').map(tag => tag.trim());
+    const tagComments = tagArray.map(tag => `;${tag}`).join(' ');
+    entry += `\n    ${tagComments}`;
+  }
+
+  if (isCredit) {
+    // For credit transactions, splits don't make much sense in the expense sharing context
+    // Just fall back to standard entry
+    const formattedAmount = `₹${totalAmount.toFixed(2)}`;
+    return entry + `\n    ${fundingAccount}    ${formattedAmount}\n    ${targetAccount}`;
+  }
+
+  // Expense split logic
+  const splitType = actionData.split_type;
+  const splitConfig = actionData.split_config;
+
+  if (splitType === 'fifty_fifty') {
+    const yourShare = Math.ceil(totalAmount / 2); // You get the extra rupee
+    const theirShare = totalAmount - yourShare;
+
+    entry += `\n    ${targetAccount}    ₹${yourShare.toFixed(2)}`;
+    entry += `\n    ${splitConfig.split_account}    ₹${theirShare.toFixed(2)}`;
+    entry += `\n    ${fundingAccount}`;
+
+  } else if (splitType === 'three_way') {
+    const yourShare = Math.ceil(totalAmount / 3); // You get the extra rupee(s)
+    const remainingAmount = totalAmount - yourShare;
+    const share1 = Math.floor(remainingAmount / 2);
+    const share2 = remainingAmount - share1;
+
+    entry += `\n    ${targetAccount}    ₹${yourShare.toFixed(2)}`;
+    entry += `\n    ${splitConfig.split_accounts[0]}    ₹${share1.toFixed(2)}`;
+    entry += `\n    ${splitConfig.split_accounts[1]}    ₹${share2.toFixed(2)}`;
+    entry += `\n    ${fundingAccount}`;
+
+  } else if (splitType === 'custom') {
+    const yourSharePercent = splitConfig.your_share_percent;
+    const yourShare = Math.floor((totalAmount * yourSharePercent) / 100);
+    let remainingAmount = totalAmount - yourShare;
+
+    entry += `\n    ${targetAccount}    ₹${yourShare.toFixed(2)}`;
+
+    // Add each custom split
+    splitConfig.custom_splits.forEach(function(split, index) {
+      const isLast = index === splitConfig.custom_splits.length - 1;
+      let splitAmount;
+
+      if (isLast) {
+        // Last entry gets any remaining amount to ensure total balance
+        splitAmount = remainingAmount;
+      } else {
+        splitAmount = Math.floor((totalAmount * split.percent) / 100);
+        remainingAmount -= splitAmount;
+      }
+
+      entry += `\n    ${split.account}    ₹${splitAmount.toFixed(2)}`;
+    });
+
+    entry += `\n    ${fundingAccount}`;
   }
 
   return entry;

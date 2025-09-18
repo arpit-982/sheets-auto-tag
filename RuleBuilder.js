@@ -72,43 +72,45 @@ function openRuleBuilder(mode, transactionData = null) {
           font-size: 14px;
           color: #3c4043;
         }
-        .container { max-width: 100%; margin: 0; padding: 16px; }
+        .container { max-width: 100%; margin: 0; padding: 12px; }
         .section {
-          margin-bottom: 24px;
+          margin-bottom: 20px;
           padding: 0;
           border: none;
           border-radius: 0;
         }
         .section-title {
           font-weight: 500;
-          margin-bottom: 16px;
+          margin-bottom: 12px;
           color: #1f1f1f;
-          font-size: 16px;
-          line-height: 24px;
-        }
-
-        .form-row { margin-bottom: 16px; }
-        .form-row label {
-          display: block;
-          font-weight: 400;
-          margin-bottom: 6px;
-          font-size: 14px;
-          color: #5f6368;
+          font-size: 15px;
           line-height: 20px;
         }
-        .form-row input, .form-row select, .form-row textarea {
+
+        .form-row { margin-bottom: 12px; }
+        .form-row label {
+          display: block;
+          font-weight: 500;
+          margin-bottom: 4px;
+          font-size: 13px;
+          color: #5f6368;
+          line-height: 16px;
+        }
+        .form-row input, .form-row select, .form-row textarea,
+        input, select, textarea {
           width: 100%;
           padding: 8px 12px;
           border: 1px solid #dadce0;
           border-radius: 4px;
-          font-size: 14px;
+          font-size: 13px;
           box-sizing: border-box;
           background-color: #ffffff;
           color: #3c4043;
-          line-height: 20px;
+          line-height: 18px;
           font-family: 'Google Sans', 'Roboto', Arial, sans-serif;
         }
-        .form-row input:focus, .form-row select:focus, .form-row textarea:focus {
+        .form-row input:focus, .form-row select:focus, .form-row textarea:focus,
+        input:focus, select:focus, textarea:focus {
           outline: none;
           border-color: #1a73e8;
           box-shadow: inset 0 0 0 1px #1a73e8;
@@ -118,8 +120,25 @@ function openRuleBuilder(mode, transactionData = null) {
           color: #5f6368;
         }
 
-        .form-row-inline { display: flex; gap: 12px; align-items: end; }
-        .form-row-inline > div { flex: 1; }
+        .form-row-inline {
+          display: grid;
+          gap: 8px;
+          align-items: end;
+          grid-template-columns: 1fr 1fr;
+        }
+        .form-row-inline.three-col {
+          grid-template-columns: 1fr 1fr auto;
+        }
+        .form-row-inline > div {
+          display: flex;
+          flex-direction: column;
+        }
+        .form-row-inline label {
+          font-weight: 500;
+          margin-bottom: 4px;
+          font-size: 13px;
+          color: #5f6368;
+        }
         
         .button {
           background: #1a73e8;
@@ -144,6 +163,9 @@ function openRuleBuilder(mode, transactionData = null) {
           color: #1a73e8;
           border: 1px solid #dadce0;
           font-weight: 500;
+          font-size: 13px;
+          padding: 6px 12px;
+          min-height: 32px;
         }
         .button-secondary:hover {
           background: #f8f9fa;
@@ -151,6 +173,13 @@ function openRuleBuilder(mode, transactionData = null) {
         }
         .button-secondary:active {
           background: #f1f3f4;
+        }
+
+        .button-group {
+          display: flex;
+          gap: 6px;
+          flex-wrap: wrap;
+          margin-top: 12px;
         }
 
         .button-danger {
@@ -197,42 +226,76 @@ function openRuleBuilder(mode, transactionData = null) {
         }
         
         .condition-row {
+          margin-bottom: 8px;
+          padding: 0;
+          background: transparent;
+          border: none;
+          border-radius: 0;
+        }
+        .condition-grid {
           display: grid;
           grid-template-columns: 1fr 1fr auto;
-          grid-template-rows: auto auto;
-          gap: 12px;
-          margin-bottom: 12px;
-          padding: 12px;
-          background: #f8f9fa;
-          border-radius: 4px;
-          border: 1px solid #e8eaed;
+          gap: 8px;
+          align-items: end;
+          margin-bottom: 4px;
+        }
+        .condition-grid > div {
+          display: flex;
+          flex-direction: column;
+        }
+        .condition-grid label {
+          font-weight: 500;
+          margin-bottom: 4px;
+          font-size: 13px;
+          color: #5f6368;
         }
         .remove-condition {
           background: #d93025;
           color: #ffffff;
           border: none;
-          padding: 6px 12px;
+          padding: 4px 8px;
           border-radius: 4px;
           cursor: pointer;
-          flex: 0 0 auto;
-          font-size: 13px;
+          font-size: 12px;
           font-weight: 500;
           font-family: 'Google Sans', 'Roboto', Arial, sans-serif;
-          min-height: 32px;
+          min-height: 28px;
+          min-width: 28px;
           transition: background-color 0.1s ease;
+          display: flex;
+          align-items: center;
+          justify-content: center;
         }
         .remove-condition:hover { background: #c5221f; }
 
-        .pattern-preview {
-          font-size: 12px;
-          margin-top: 0;
-          font-family: 'Roboto Mono', monospace;
-          padding: 6px 8px;
+        .remove-split {
+          background: #ea4335;
+          color: #ffffff;
+          border: none;
+          padding: 4px 8px;
           border-radius: 4px;
-          min-height: 18px;
-          line-height: 18px;
+          cursor: pointer;
+          font-size: 12px;
+          font-weight: 500;
+          font-family: 'Google Sans', 'Roboto', Arial, sans-serif;
+          min-height: 28px;
+          min-width: 28px;
+          transition: background-color 0.1s ease;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        }
+        .remove-split:hover { background: #d23f31; }
+
+        .pattern-preview {
+          font-size: 11px;
+          margin: 4px 0 8px 0;
+          font-family: 'Roboto Mono', monospace;
+          padding: 4px 8px;
+          border-radius: 3px;
+          min-height: 16px;
+          line-height: 16px;
           border: 1px solid transparent;
-          grid-column: 1 / -1;
           width: 100%;
           box-sizing: border-box;
         }
@@ -289,17 +352,17 @@ function openRuleBuilder(mode, transactionData = null) {
         <!-- Rule Metadata -->
         <div class="section">
           <div class="section-title">Rule Information</div>
-          <div class="form-row">
-            <label for="ruleId">Rule ID</label>
-            <input type="text" id="ruleId" readonly>
-          </div>
-          <div class="form-row-inline">
-            <div style="flex: 2;">
+          <div class="form-row-inline three-col">
+            <div>
+              <label for="ruleId">Rule ID</label>
+              <input type="text" id="ruleId" readonly>
+            </div>
+            <div>
               <label for="priority">Priority</label>
               <input type="number" id="priority" value="1" min="1">
             </div>
-            <div style="flex: 1; display: flex; align-items: end; padding-bottom: 8px;">
-              <label style="display: flex; align-items: center; gap: 8px; font-size: 14px; color: #5f6368; cursor: pointer;">
+            <div style="padding-top: 20px; display: flex; align-items: center;">
+              <label style="display: flex; align-items: center; gap: 6px; font-size: 13px; color: #5f6368; cursor: pointer;">
                 <input type="checkbox" id="isActive" checked style="margin: 0; width: 16px; height: 16px;"> Active
               </label>
             </div>
@@ -312,7 +375,7 @@ function openRuleBuilder(mode, transactionData = null) {
           <div id="conditionsContainer">
             <!-- Conditions will be added dynamically -->
           </div>
-          <div style="display: flex; gap: 8px; margin-top: 16px; flex-wrap: wrap;">
+          <div class="button-group">
             <button type="button" class="button-secondary" onclick="addCondition()">Add Condition</button>
             <button type="button" class="button-secondary" onclick="generateRegexPattern()">🤖 Generate Regex</button>
             <button type="button" class="button-secondary" onclick="debugTransactionData()">Debug Data</button>
@@ -346,6 +409,80 @@ function openRuleBuilder(mode, transactionData = null) {
             <label for="tags">Tags (comma-separated)</label>
             <input type="text" id="tags" placeholder="tag1,tag2,tag3">
           </div>
+
+          <div class="form-row">
+            <label style="display: flex; align-items: center; gap: 8px; font-size: 13px; color: #5f6368; cursor: pointer;">
+              <input type="checkbox" id="includeUserContext" checked style="margin: 0; width: 16px; height: 16px;">
+              Include User Context as first comment
+            </label>
+          </div>
+
+          <!-- Split Configuration -->
+          <div class="form-row">
+            <label for="splitType">Split Type</label>
+            <select id="splitType" onchange="updateSplitFields()">
+              <option value="none">None</option>
+              <option value="fifty_fifty">50/50 Split</option>
+              <option value="three_way">3-way Split</option>
+              <option value="custom">Custom Split</option>
+            </select>
+          </div>
+
+          <!-- Split Configuration Fields (initially hidden) -->
+          <div id="splitConfiguration" class="hidden">
+            <!-- 50/50 Split Fields -->
+            <div id="fiftyFiftySplit" class="hidden">
+              <div class="form-row">
+                <label for="splitAccount50">Split With</label>
+                <select id="splitAccount50">
+                  <option value="">Loading accounts...</option>
+                </select>
+              </div>
+            </div>
+
+            <!-- 3-way Split Fields -->
+            <div id="threeWaySplit" class="hidden">
+              <div class="form-row">
+                <label for="splitAccount1">Person 1</label>
+                <select id="splitAccount1">
+                  <option value="">Select account...</option>
+                </select>
+              </div>
+              <div class="form-row">
+                <label for="splitAccount2">Person 2</label>
+                <select id="splitAccount2">
+                  <option value="">Select account...</option>
+                </select>
+              </div>
+            </div>
+
+            <!-- Custom Split Fields -->
+            <div id="customSplit" class="hidden">
+              <div class="form-row">
+                <label>Your Share (%)</label>
+                <input type="number" id="yourSharePercent" value="50" min="0" max="100" onchange="validateCustomSplit()">
+              </div>
+              <div id="customSplitEntries">
+                <div class="form-row-inline three-col" id="customEntry1">
+                  <div>
+                    <label>Person 1 Account</label>
+                    <select id="customAccount1">
+                      <option value="">Select account...</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label>Share (%)</label>
+                    <input type="number" id="customPercent1" value="50" min="0" max="100" onchange="validateCustomSplit()">
+                  </div>
+                  <div style="padding-top: 20px; display: flex; align-items: center;">
+                    <div style="width: 28px;"></div>
+                  </div>
+                </div>
+              </div>
+              <button type="button" class="button-secondary" onclick="addCustomSplitEntry()" style="margin-top: 8px;">+ Add Person</button>
+              <div id="customSplitValidation" class="status hidden" style="margin: 8px 0;"></div>
+            </div>
+          </div>
         </div>
         
         <!-- Preview -->
@@ -356,7 +493,7 @@ function openRuleBuilder(mode, transactionData = null) {
         </div>
         
         <!-- Actions -->
-        <div style="display: flex; flex-wrap: wrap; gap: 8px; margin-top: 24px; justify-content: flex-start;">
+        <div class="button-group" style="margin-top: 24px; justify-content: flex-start;">
           <button type="button" class="button" onclick="saveRule()" id="saveButton">Save Rule</button>
           <button type="button" class="button-secondary" onclick="testRule()">Test Rule</button>
           <button type="button" class="button-danger hidden" onclick="deleteRule()" id="deleteButton">Delete Rule</button>
@@ -446,26 +583,32 @@ function openRuleBuilder(mode, transactionData = null) {
         function buildConditionHTML(id) {
           const removeButton = id > 1
             ? '<button type="button" class="remove-condition" onclick="removeCondition(' + id + ')">×</button>'
-            : '<div style="flex: 0 0 auto; width: 40px;"></div>';
+            : '<div style="width: 32px;"></div>';
+
+          const showLabels = id === 1; // Only show labels for first condition
 
           return [
-            '<div style="flex: 1;">',
-              '<label>Condition</label>',
-              '<select id="condition_' + id + '" data-condition-id="' + id + '" onchange="validatePatternRealtime(' + id + ')">',
-                '<option value="Narration CONTAINS">Narration Contains</option>',
-                '<option value="Narration REGEX">Narration Regex</option>',
-                '<option value="Amount ==">Amount Equals</option>',
-                '<option value="Amount >">Amount Greater Than</option>',
-                '<option value="Amount <">Amount Less Than</option>',
-                '<option value="User_Context CONTAINS">User Context Contains</option>',
-              '</select>',
+            '<div class="condition-grid">',
+              '<div>',
+                showLabels ? '<label>Condition</label>' : '',
+                '<select id="condition_' + id + '" data-condition-id="' + id + '" onchange="validatePatternRealtime(' + id + ')">',
+                  '<option value="Narration CONTAINS">Narration Contains</option>',
+                  '<option value="Narration REGEX">Narration Regex</option>',
+                  '<option value="Amount ==">Amount Equals</option>',
+                  '<option value="Amount >">Amount Greater Than</option>',
+                  '<option value="Amount <">Amount Less Than</option>',
+                  '<option value="User_Context CONTAINS">User Context Contains</option>',
+                '</select>',
+              '</div>',
+              '<div>',
+                showLabels ? '<label>Pattern</label>' : '',
+                '<input type="text" id="pattern_' + id + '" data-condition-id="' + id + '" placeholder="Pattern or value" oninput="validatePatternRealtime(' + id + ')">',
+              '</div>',
+              '<div style="display: flex; align-items: end;">',
+                removeButton,
+              '</div>',
             '</div>',
-            '<div style="flex: 1;">',
-              '<label>Pattern</label>',
-              '<input type="text" id="pattern_' + id + '" data-condition-id="' + id + '" placeholder="Pattern or value" oninput="validatePatternRealtime(' + id + ')">',
-            '</div>',
-            removeButton,
-            '<div id="pattern_preview_' + id + '" class="pattern-preview" style="grid-column: 1 / -1;"></div>'
+            '<div id="pattern_preview_' + id + '" class="pattern-preview"></div>'
           ].join('');
         }
         
@@ -640,15 +783,51 @@ function openRuleBuilder(mode, transactionData = null) {
           google.script.run
             .withSuccessHandler(function(accounts) {
               allAccounts = accounts;
+
+              // Load main account dropdown
               const accountSelect = document.getElementById('account');
               accountSelect.innerHTML = '<option value="">Select account...</option>';
-              
+
+              // Load all split account dropdowns
+              const splitSelectors = [
+                'splitAccount50', 'splitAccount1', 'splitAccount2', 'customAccount1'
+              ];
+
+              splitSelectors.forEach(function(selectorId) {
+                const selector = document.getElementById(selectorId);
+                if (selector) {
+                  const defaultText = selectorId === 'splitAccount50' ? 'Loading accounts...' : 'Select account...';
+                  selector.innerHTML = '<option value="">' + defaultText + '</option>';
+                }
+              });
+
               accounts.forEach(function(account) {
+                // Add to main account dropdown
                 const option = document.createElement('option');
                 option.value = account;
                 option.textContent = account;
                 accountSelect.appendChild(option);
+
+                // Add to all split dropdowns
+                splitSelectors.forEach(function(selectorId) {
+                  const selector = document.getElementById(selectorId);
+                  if (selector) {
+                    const splitOption = document.createElement('option');
+                    splitOption.value = account;
+                    splitOption.textContent = account;
+                    selector.appendChild(splitOption);
+                  }
+                });
               });
+
+              // Set default for 50/50 split
+              const splitAccount50 = document.getElementById('splitAccount50');
+              if (splitAccount50) {
+                const ananyaAccount = accounts.find(acc => acc.includes('Ananya'));
+                if (ananyaAccount) {
+                  splitAccount50.value = ananyaAccount;
+                }
+              }
             })
             .withFailureHandler(function(error) {
               showStatus('Failed to load accounts: ' + error, 'error');
@@ -710,10 +889,56 @@ function openRuleBuilder(mode, transactionData = null) {
             document.getElementById('account').value = actionData.account || actionData.to_account || '';
             document.getElementById('payee').value = actionData.payee || '';
             document.getElementById('tags').value = actionData.tags || '';
+
+            // Load user context checkbox state (default to true for backward compatibility)
+            document.getElementById('includeUserContext').checked = actionData.include_user_context !== undefined ? actionData.include_user_context : true;
+
+            // Load split configuration if present
+            if (actionData.split_type) {
+              document.getElementById('splitType').value = actionData.split_type;
+              updateSplitFields();
+
+              if (actionData.split_type === 'fifty_fifty' && actionData.split_config && actionData.split_config.split_account) {
+                setTimeout(function() {
+                  document.getElementById('splitAccount50').value = actionData.split_config.split_account;
+                }, 100);
+              } else if (actionData.split_type === 'three_way' && actionData.split_config && actionData.split_config.split_accounts) {
+                setTimeout(function() {
+                  if (actionData.split_config.split_accounts[0]) {
+                    document.getElementById('splitAccount1').value = actionData.split_config.split_accounts[0];
+                  }
+                  if (actionData.split_config.split_accounts[1]) {
+                    document.getElementById('splitAccount2').value = actionData.split_config.split_accounts[1];
+                  }
+                }, 100);
+              } else if (actionData.split_type === 'custom' && actionData.split_config) {
+                setTimeout(function() {
+                  if (actionData.split_config.your_share_percent) {
+                    document.getElementById('yourSharePercent').value = actionData.split_config.your_share_percent;
+                  }
+
+                  if (actionData.split_config.custom_splits) {
+                    actionData.split_config.custom_splits.forEach(function(split, index) {
+                      if (index > 0) {
+                        addCustomSplitEntry();
+                      }
+                      const entryNum = index + 1;
+                      const accountEl = document.getElementById('customAccount' + entryNum);
+                      const percentEl = document.getElementById('customPercent' + entryNum);
+                      if (accountEl && percentEl) {
+                        accountEl.value = split.account;
+                        percentEl.value = split.percent;
+                      }
+                    });
+                    validateCustomSplit();
+                  }
+                }, 200);
+              }
+            }
           } catch (e) {
             showStatus('Error parsing rule action: ' + e.message, 'error');
           }
-          
+
           updateActionFields();
         }
         
@@ -740,7 +965,99 @@ function openRuleBuilder(mode, transactionData = null) {
             }
           }
         }
-        
+
+        // Split Configuration Functions
+        function updateSplitFields() {
+          const splitType = document.getElementById('splitType').value;
+          const splitConfiguration = document.getElementById('splitConfiguration');
+          const fiftyFiftySplit = document.getElementById('fiftyFiftySplit');
+          const threeWaySplit = document.getElementById('threeWaySplit');
+          const customSplit = document.getElementById('customSplit');
+
+          // Hide all split sections first
+          splitConfiguration.classList.add('hidden');
+          fiftyFiftySplit.classList.add('hidden');
+          threeWaySplit.classList.add('hidden');
+          customSplit.classList.add('hidden');
+
+          if (splitType !== 'none') {
+            splitConfiguration.classList.remove('hidden');
+
+            if (splitType === 'fifty_fifty') {
+              fiftyFiftySplit.classList.remove('hidden');
+            } else if (splitType === 'three_way') {
+              threeWaySplit.classList.remove('hidden');
+            } else if (splitType === 'custom') {
+              customSplit.classList.remove('hidden');
+              validateCustomSplit();
+            }
+          }
+        }
+
+        let customSplitCounter = 1;
+
+        function addCustomSplitEntry() {
+          customSplitCounter++;
+          const container = document.getElementById('customSplitEntries');
+
+          const entryDiv = document.createElement('div');
+          entryDiv.className = 'form-row-inline three-col';
+          entryDiv.id = 'customEntry' + customSplitCounter;
+
+          entryDiv.innerHTML = [
+            '<div>',
+              '<select id="customAccount' + customSplitCounter + '">',
+                '<option value="">Select account...</option>',
+                allAccounts.map(acc => '<option value="' + acc + '">' + acc + '</option>').join(''),
+              '</select>',
+            '</div>',
+            '<div>',
+              '<input type="number" id="customPercent' + customSplitCounter + '" value="0" min="0" max="100" onchange="validateCustomSplit()" placeholder="Share %">',
+            '</div>',
+            '<div style="display: flex; align-items: center;">',
+              '<button type="button" class="remove-split" onclick="removeCustomSplitEntry(' + customSplitCounter + ')" title="Remove person">×</button>',
+            '</div>'
+          ].join('');
+
+          container.appendChild(entryDiv);
+          validateCustomSplit();
+        }
+
+        function removeCustomSplitEntry(id) {
+          const element = document.getElementById('customEntry' + id);
+          if (element) {
+            element.remove();
+            validateCustomSplit();
+          }
+        }
+
+        function validateCustomSplit() {
+          const yourShareEl = document.getElementById('yourSharePercent');
+          const validationDiv = document.getElementById('customSplitValidation');
+
+          if (!yourShareEl || !validationDiv) return;
+
+          let totalPercent = parseInt(yourShareEl.value) || 0;
+
+          // Sum up all custom percentages
+          for (let i = 1; i <= customSplitCounter; i++) {
+            const percentEl = document.getElementById('customPercent' + i);
+            if (percentEl && document.getElementById('customEntry' + i)) {
+              totalPercent += parseInt(percentEl.value) || 0;
+            }
+          }
+
+          if (totalPercent === 100) {
+            validationDiv.innerHTML = '<div class="status success">✓ Split adds up to 100%</div>';
+            validationDiv.classList.remove('hidden');
+          } else if (totalPercent > 0) {
+            validationDiv.innerHTML = '<div class="status error">⚠ Split total: ' + totalPercent + '% (should be 100%)</div>';
+            validationDiv.classList.remove('hidden');
+          } else {
+            validationDiv.classList.add('hidden');
+          }
+        }
+
         function generatePreview() {
           const ruleData = collectFormData();
           if (!ruleData) return;
@@ -793,13 +1110,70 @@ function openRuleBuilder(mode, transactionData = null) {
           
           const actionValue = {
             payee: payee,
-            tags: tags
+            tags: tags,
+            include_user_context: document.getElementById('includeUserContext').checked
           };
 
           if (actionType === 'CREATE_TRANSFER') {
             actionValue.to_account = account;
           } else {
             actionValue.account = account;
+          }
+
+          // Add split configuration
+          const splitType = document.getElementById('splitType').value;
+          if (splitType && splitType !== 'none') {
+            actionValue.split_type = splitType;
+            actionValue.split_config = {};
+
+            if (splitType === 'fifty_fifty') {
+              const splitAccount = document.getElementById('splitAccount50').value;
+              if (!splitAccount) {
+                showStatus('Please select an account for 50/50 split', 'error');
+                return null;
+              }
+              actionValue.split_config.split_account = splitAccount;
+            } else if (splitType === 'three_way') {
+              const splitAccount1 = document.getElementById('splitAccount1').value;
+              const splitAccount2 = document.getElementById('splitAccount2').value;
+              if (!splitAccount1 || !splitAccount2) {
+                showStatus('Please select both accounts for 3-way split', 'error');
+                return null;
+              }
+              actionValue.split_config.split_accounts = [splitAccount1, splitAccount2];
+            } else if (splitType === 'custom') {
+              const yourShare = parseInt(document.getElementById('yourSharePercent').value) || 0;
+              const customSplits = [];
+
+              for (let i = 1; i <= customSplitCounter; i++) {
+                const entryEl = document.getElementById('customEntry' + i);
+                const accountEl = document.getElementById('customAccount' + i);
+                const percentEl = document.getElementById('customPercent' + i);
+
+                if (entryEl && accountEl && percentEl) {
+                  const account = accountEl.value;
+                  const percent = parseInt(percentEl.value) || 0;
+
+                  if (account && percent > 0) {
+                    customSplits.push({
+                      account: account,
+                      percent: percent
+                    });
+                  }
+                }
+              }
+
+              let totalPercent = yourShare;
+              customSplits.forEach(split => totalPercent += split.percent);
+
+              if (totalPercent !== 100) {
+                showStatus('Custom split percentages must total 100%', 'error');
+                return null;
+              }
+
+              actionValue.split_config.your_share_percent = yourShare;
+              actionValue.split_config.custom_splits = customSplits;
+            }
           }
 
           debugLog('Action value object: ' + JSON.stringify(actionValue));
@@ -1006,7 +1380,7 @@ function openRuleBuilder(mode, transactionData = null) {
   htmlTemplate.mode = mode;
   htmlTemplate.transactionData = transactionData;
 
-  const html = htmlTemplate.evaluate().setWidth(400).setTitle('Rule Builder');
+  const html = htmlTemplate.evaluate().setWidth(500).setTitle("Rule Builder");
   SpreadsheetApp.getUi().showSidebar(html);
 }
 
@@ -1064,7 +1438,8 @@ function getNextRuleId() {
   try {
     Logger.log("getNextRuleId function called");
 
-    const rulesSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Rules");
+    const rulesSheet =
+      SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Rules");
     if (!rulesSheet || rulesSheet.getLastRow() < 2) {
       Logger.log("No Rules sheet or no data, returning R001");
       return "R001";
@@ -1076,8 +1451,8 @@ function getNextRuleId() {
     const existingIds = rulesSheet
       .getRange(2, 1, lastRow - 1, 1)
       .getValues()
-      .map(row => row[0])
-      .filter(id => id && String(id).startsWith('R'));
+      .map((row) => row[0])
+      .filter((id) => id && String(id).startsWith("R"));
 
     Logger.log("Existing rule IDs: " + JSON.stringify(existingIds));
 
@@ -1087,7 +1462,7 @@ function getNextRuleId() {
     }
 
     // Extract numeric parts and find the maximum
-    const numbers = existingIds.map(id => {
+    const numbers = existingIds.map((id) => {
       const match = String(id).match(/^R(\d+)$/);
       return match ? parseInt(match[1], 10) : 0;
     });
@@ -1098,7 +1473,14 @@ function getNextRuleId() {
     const nextNumber = maxNumber + 1;
     const nextRuleId = "R" + String(nextNumber).padStart(3, "0");
 
-    Logger.log("Max number: " + maxNumber + ", Next number: " + nextNumber + ", Next rule ID: " + nextRuleId);
+    Logger.log(
+      "Max number: " +
+        maxNumber +
+        ", Next number: " +
+        nextNumber +
+        ", Next rule ID: " +
+        nextRuleId
+    );
 
     return nextRuleId;
   } catch (error) {
@@ -1109,17 +1491,18 @@ function getNextRuleId() {
 }
 
 function logDebugMessage(message) {
-  Logger.log('[CLIENT DEBUG] ' + message);
+  Logger.log("[CLIENT DEBUG] " + message);
 }
 
 function simpleTest() {
-  Logger.log('simpleTest function called');
-  return 'Apps Script is working!';
+  Logger.log("simpleTest function called");
+  return "Apps Script is working!";
 }
 
 function testRulesSheetAccess() {
   try {
-    const rulesSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Rules");
+    const rulesSheet =
+      SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Rules");
     if (!rulesSheet) {
       return { success: false, error: "Rules sheet not found" };
     }
@@ -1129,7 +1512,9 @@ function testRulesSheetAccess() {
 
     // Try to read the first few rows to verify structure
     if (lastRow > 1) {
-      const sampleData = rulesSheet.getRange(1, 1, Math.min(3, lastRow), 7).getValues();
+      const sampleData = rulesSheet
+        .getRange(1, 1, Math.min(3, lastRow), 7)
+        .getValues();
       Logger.log("Sample data from Rules sheet: " + JSON.stringify(sampleData));
     }
 
@@ -1142,7 +1527,7 @@ function testRulesSheetAccess() {
 
 function saveRuleToSheet(ruleData, isEdit = false) {
   try {
-    Logger.log('Saving rule data: ' + JSON.stringify(ruleData));
+    Logger.log("Saving rule data: " + JSON.stringify(ruleData));
 
     const rulesSheet =
       SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Rules");
@@ -1160,7 +1545,7 @@ function saveRuleToSheet(ruleData, isEdit = false) {
       ruleData.actionValue,
     ];
 
-    Logger.log('Rule array to save: ' + JSON.stringify(ruleArray));
+    Logger.log("Rule array to save: " + JSON.stringify(ruleArray));
 
     if (isEdit) {
       // Find existing rule and update it
@@ -1176,26 +1561,28 @@ function saveRuleToSheet(ruleData, isEdit = false) {
       throw new Error("Rule not found for editing");
     } else {
       // Add new rule to the next available row (not at the very end)
-      Logger.log('About to add row to Rules sheet');
+      Logger.log("About to add row to Rules sheet");
 
       // Find the actual last row with data in column A (ID column)
-      const values = rulesSheet.getRange('A:A').getValues();
+      const values = rulesSheet.getRange("A:A").getValues();
       let lastDataRow = 1; // Start from row 1 (header)
 
       for (let i = values.length - 1; i >= 0; i--) {
-        if (values[i][0] && values[i][0] !== '') {
+        if (values[i][0] && values[i][0] !== "") {
           lastDataRow = i + 1;
           break;
         }
       }
 
-      Logger.log('Last data row found: ' + lastDataRow);
+      Logger.log("Last data row found: " + lastDataRow);
       const nextRow = lastDataRow + 1;
-      Logger.log('Inserting rule at row: ' + nextRow);
+      Logger.log("Inserting rule at row: " + nextRow);
 
       // Insert the rule at the next row after the last data row
-      rulesSheet.getRange(nextRow, 1, 1, ruleArray.length).setValues([ruleArray]);
-      Logger.log('Successfully added rule at row: ' + nextRow);
+      rulesSheet
+        .getRange(nextRow, 1, 1, ruleArray.length)
+        .setValues([ruleArray]);
+      Logger.log("Successfully added rule at row: " + nextRow);
 
       return { success: true };
     }
@@ -1241,6 +1628,7 @@ function generateRulePreview(ruleData, transactionData) {
     const payee = actionData.payee || "Sample Transaction";
     const account = actionData.account || actionData.to_account;
     const tags = actionData.tags || "";
+    const userContext = (transactionData && transactionData.userContext && transactionData.userContext.trim()) || "";
 
     return formatLedgerCliEntry(
       date,
@@ -1249,7 +1637,9 @@ function generateRulePreview(ruleData, transactionData) {
       amount,
       "Assets:Checking:Punjab National Bank",
       isCredit,
-      tags
+      tags,
+      actionData,
+      userContext
     );
   } catch (error) {
     throw new Error("Preview generation failed: " + error.message);
@@ -1334,27 +1724,133 @@ function formatLedgerCliEntry(
   amount,
   fundingAccount,
   isCredit,
-  tags
+  tags,
+  actionData = null,
+  userContext = null
 ) {
   const yyyy = date.getFullYear();
   const mm = String(date.getMonth() + 1).padStart(2, "0");
   const dd = String(date.getDate()).padStart(2, "0");
   const formattedDate = `${yyyy}/${mm}/${dd}`;
-  const formattedAmount = `₹${amount.toFixed(2)}`;
+  const totalAmount = Math.abs(amount);
 
-  const tagLine = tags ? `    ;${tags}` : "";
+  // Check if this is a split transaction
+  if (actionData && actionData.split_type && actionData.split_type !== "none") {
+    return generateSplitLedgerEntry(
+      formattedDate,
+      payee,
+      targetAccount,
+      totalAmount,
+      fundingAccount,
+      isCredit,
+      tags,
+      actionData,
+      userContext
+    );
+  }
+
+  // Standard non-split entry
+  const formattedAmount = `₹${totalAmount.toFixed(2)}`;
+
+  // Build comment lines
+  let commentLines = "";
+  if (actionData && actionData.include_user_context && userContext && userContext.trim()) {
+    commentLines += `\n    ;${userContext.trim()}`;
+  }
+  if (tags && tags.trim()) {
+    const tagArray = tags.split(',').map(tag => tag.trim());
+    const tagComments = tagArray.map(tag => `;${tag}`).join(' ');
+    commentLines += `\n    ${tagComments}`;
+  }
 
   if (isCredit) {
     // Income: Money flows TO the funding account FROM the target account
-    return `${formattedDate} ${payee}${
-      tagLine ? "\n" + tagLine : ""
-    }\n    ${fundingAccount}    ${formattedAmount}\n    ${targetAccount}`;
+    return `${formattedDate} ${payee}${commentLines}\n    ${fundingAccount}    ${formattedAmount}\n    ${targetAccount}`;
   } else {
     // Expense/Transfer: Money flows FROM the funding account TO the target account
-    return `${formattedDate} ${payee}${
-      tagLine ? "\n" + tagLine : ""
-    }\n    ${targetAccount}    ${formattedAmount}\n    ${fundingAccount}`;
+    return `${formattedDate} ${payee}${commentLines}\n    ${targetAccount}    ${formattedAmount}\n    ${fundingAccount}`;
   }
+}
+
+function generateSplitLedgerEntry(
+  formattedDate,
+  payee,
+  targetAccount,
+  totalAmount,
+  fundingAccount,
+  isCredit,
+  tags,
+  actionData,
+  userContext = null
+) {
+  // Build comment lines
+  let commentLines = "";
+  if (actionData && actionData.include_user_context && userContext && userContext.trim()) {
+    commentLines += `\n    ;${userContext.trim()}`;
+  }
+  if (tags && tags.trim()) {
+    const tagArray = tags.split(',').map(tag => tag.trim());
+    const tagComments = tagArray.map(tag => `;${tag}`).join(' ');
+    commentLines += `\n    ${tagComments}`;
+  }
+
+  let entry = `${formattedDate} ${payee}${commentLines}`;
+
+  if (isCredit) {
+    // For credit transactions, splits don't make much sense in the expense sharing context
+    // Just fall back to standard entry
+    const formattedAmount = `₹${totalAmount.toFixed(2)}`;
+    return entry + `\n    ${fundingAccount}    ${formattedAmount}\n    ${targetAccount}`;
+  }
+
+  // Expense split logic
+  const splitType = actionData.split_type;
+  const splitConfig = actionData.split_config;
+
+  if (splitType === "fifty_fifty") {
+    const yourShare = Math.ceil(totalAmount / 2); // You get the extra rupee
+    const theirShare = totalAmount - yourShare;
+
+    entry += `\n    ${targetAccount}    ₹${yourShare.toFixed(2)}`;
+    entry += `\n    ${splitConfig.split_account}    ₹${theirShare.toFixed(2)}`;
+    entry += `\n    ${fundingAccount}`;
+  } else if (splitType === "three_way") {
+    const yourShare = Math.ceil(totalAmount / 3); // You get the extra rupee(s)
+    const remainingAmount = totalAmount - yourShare;
+    const share1 = Math.floor(remainingAmount / 2);
+    const share2 = remainingAmount - share1;
+
+    entry += `\n    ${targetAccount}    ₹${yourShare.toFixed(2)}`;
+    entry += `\n    ${splitConfig.split_accounts[0]}    ₹${share1.toFixed(2)}`;
+    entry += `\n    ${splitConfig.split_accounts[1]}    ₹${share2.toFixed(2)}`;
+    entry += `\n    ${fundingAccount}`;
+  } else if (splitType === "custom") {
+    const yourSharePercent = splitConfig.your_share_percent;
+    const yourShare = Math.floor((totalAmount * yourSharePercent) / 100);
+    let remainingAmount = totalAmount - yourShare;
+
+    entry += `\n    ${targetAccount}    ₹${yourShare.toFixed(2)}`;
+
+    // Add each custom split
+    splitConfig.custom_splits.forEach(function (split, index) {
+      const isLast = index === splitConfig.custom_splits.length - 1;
+      let splitAmount;
+
+      if (isLast) {
+        // Last entry gets any remaining amount to ensure total balance
+        splitAmount = remainingAmount;
+      } else {
+        splitAmount = Math.floor((totalAmount * split.percent) / 100);
+        remainingAmount -= splitAmount;
+      }
+
+      entry += `\n    ${split.account}    ₹${splitAmount.toFixed(2)}`;
+    });
+
+    entry += `\n    ${fundingAccount}`;
+  }
+
+  return entry;
 }
 
 // Helper function to get column indices (used by createRuleFromSelection)
@@ -1372,8 +1868,18 @@ function getColumnIndices(headers) {
     srNo: findColumnIndex(["Sr No", "Sr. No", "SrNo"]),
     date: findColumnIndex(["Transaction Date", "Date", "Txn Date"]),
     narration: findColumnIndex(["Narration", "Description", "Details"]),
-    withdrawal: findColumnIndex(["Withdrawal", "Withdrawal Amount", "Debit", "Debit Amount"]),
-    deposit: findColumnIndex(["Deposit", "Deposit Amount", "Credit", "Credit Amount"]),
+    withdrawal: findColumnIndex([
+      "Withdrawal",
+      "Withdrawal Amount",
+      "Debit",
+      "Debit Amount",
+    ]),
+    deposit: findColumnIndex([
+      "Deposit",
+      "Deposit Amount",
+      "Credit",
+      "Credit Amount",
+    ]),
     balance: findColumnIndex(["Balance", "Available Balance"]),
     userContext: findColumnIndex(["User Context", "UserContext", "Context"]),
     tags: findColumnIndex(["Tags", "Tag"]),
