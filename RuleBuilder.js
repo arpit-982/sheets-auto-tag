@@ -417,6 +417,13 @@ function openRuleBuilder(mode, transactionData = null) {
             </label>
           </div>
 
+          <div class="form-row">
+            <label style="display: flex; align-items: center; gap: 8px; font-size: 13px; color: #5f6368; cursor: pointer;">
+              <input type="checkbox" id="includeNarration" style="margin: 0; width: 16px; height: 16px;">
+              Include Narration as comment
+            </label>
+          </div>
+
           <!-- Split Configuration -->
           <div class="form-row">
             <label for="splitType">Split Type</label>
@@ -893,6 +900,9 @@ function openRuleBuilder(mode, transactionData = null) {
             // Load user context checkbox state (default to true for backward compatibility)
             document.getElementById('includeUserContext').checked = actionData.include_user_context !== undefined ? actionData.include_user_context : true;
 
+            // Load narration checkbox state (default to false for backward compatibility)
+            document.getElementById('includeNarration').checked = actionData.include_narration !== undefined ? actionData.include_narration : false;
+
             // Load split configuration if present
             if (actionData.split_type) {
               document.getElementById('splitType').value = actionData.split_type;
@@ -1111,7 +1121,8 @@ function openRuleBuilder(mode, transactionData = null) {
           const actionValue = {
             payee: payee,
             tags: tags,
-            include_user_context: document.getElementById('includeUserContext').checked
+            include_user_context: document.getElementById('includeUserContext').checked,
+            include_narration: document.getElementById('includeNarration').checked
           };
 
           if (actionType === 'CREATE_TRANSFER') {
@@ -1628,7 +1639,16 @@ function generateRulePreview(ruleData, transactionData) {
     const payee = actionData.payee || "Sample Transaction";
     const account = actionData.account || actionData.to_account;
     const tags = actionData.tags || "";
-    const userContext = (transactionData && transactionData.userContext && transactionData.userContext.trim()) || "";
+    // For preview: show placeholder text if checkbox is enabled but no actual data available
+    let userContext = "";
+    if (actionData.include_user_context) {
+      userContext = (transactionData && transactionData.userContext && transactionData.userContext.trim()) || "Sample User Context";
+    }
+
+    let narration = "";
+    if (actionData.include_narration) {
+      narration = (transactionData && transactionData.narration && transactionData.narration.trim()) || "Sample Narration";
+    }
 
     return formatLedgerCliEntry(
       date,
@@ -1639,7 +1659,8 @@ function generateRulePreview(ruleData, transactionData) {
       isCredit,
       tags,
       actionData,
-      userContext
+      userContext,
+      narration
     );
   } catch (error) {
     throw new Error("Preview generation failed: " + error.message);
@@ -1726,7 +1747,8 @@ function formatLedgerCliEntry(
   isCredit,
   tags,
   actionData = null,
-  userContext = null
+  userContext = null,
+  narration = null
 ) {
   const yyyy = date.getFullYear();
   const mm = String(date.getMonth() + 1).padStart(2, "0");
@@ -1745,7 +1767,8 @@ function formatLedgerCliEntry(
       isCredit,
       tags,
       actionData,
-      userContext
+      userContext,
+      narration
     );
   }
 
@@ -1756,6 +1779,9 @@ function formatLedgerCliEntry(
   let commentLines = "";
   if (actionData && actionData.include_user_context && userContext && userContext.trim()) {
     commentLines += `\n    ;${userContext.trim()}`;
+  }
+  if (actionData && actionData.include_narration && narration && narration.trim()) {
+    commentLines += `\n    ;${narration.trim()}`;
   }
   if (tags && tags.trim()) {
     const tagArray = tags.split(',').map(tag => tag.trim());
@@ -1781,12 +1807,16 @@ function generateSplitLedgerEntry(
   isCredit,
   tags,
   actionData,
-  userContext = null
+  userContext = null,
+  narration = null
 ) {
   // Build comment lines
   let commentLines = "";
   if (actionData && actionData.include_user_context && userContext && userContext.trim()) {
     commentLines += `\n    ;${userContext.trim()}`;
+  }
+  if (actionData && actionData.include_narration && narration && narration.trim()) {
+    commentLines += `\n    ;${narration.trim()}`;
   }
   if (tags && tags.trim()) {
     const tagArray = tags.split(',').map(tag => tag.trim());

@@ -182,7 +182,7 @@ if (!result) {
     // FIX: Use suggestion.payee instead of generic payee extraction
     const payee = suggestion.payee || userContext.trim() || 'Misc Expense';
     
-    const finalEntry = formatLedgerCliEntry(date, payee, suggestion.account, amount, fundingAccount, isCredit, suggestion.tags, null, userContext);
+    const finalEntry = formatLedgerCliEntry(date, payee, suggestion.account, amount, fundingAccount, isCredit, suggestion.tags, null, userContext, narration);
     result = {
       finalEntry: finalEntry,
       tags: suggestion.tags,
@@ -483,9 +483,9 @@ function applyRules(narration, amount, date, fundingAccount, isCredit, userConte
         
         let finalEntry;
         if (actionType === 'CREATE_ENTRY') {
-          finalEntry = formatLedgerCliEntry(date, params.payee || narration, params.account, amount, fundingAccount, isCredit, params.tags, params, userContext);
+          finalEntry = formatLedgerCliEntry(date, params.payee || narration, params.account, amount, fundingAccount, isCredit, params.tags, params, userContext, narration);
         } else if (actionType === 'CREATE_TRANSFER') {
-          finalEntry = formatLedgerCliEntry(date, params.payee || narration, params.to_account, amount, fundingAccount, false, params.tags, params, userContext);
+          finalEntry = formatLedgerCliEntry(date, params.payee || narration, params.to_account, amount, fundingAccount, false, params.tags, params, userContext, narration);
         }
 
         Logger.log('Generated entry: ' + finalEntry);
@@ -509,7 +509,7 @@ function applyRules(narration, amount, date, fundingAccount, isCredit, userConte
  * Formats a ledger entry in the ledger-cli style, supporting both simple and split transactions.
  * @returns {string} The formatted, multi-line ledger entry.
  */
-function formatLedgerCliEntry(date, payee, targetAccount, amount, fundingAccount, isCredit, tags, actionData = null, userContext = null) {
+function formatLedgerCliEntry(date, payee, targetAccount, amount, fundingAccount, isCredit, tags, actionData = null, userContext = null, narration = null) {
   const yyyy = date.getFullYear();
   const mm = String(date.getMonth() + 1).padStart(2, '0');
   const dd = String(date.getDate()).padStart(2, '0');
@@ -518,7 +518,7 @@ function formatLedgerCliEntry(date, payee, targetAccount, amount, fundingAccount
 
   // Check if this is a split transaction
   if (actionData && actionData.split_type && actionData.split_type !== 'none') {
-    return generateSplitLedgerEntry(formattedDate, payee, targetAccount, totalAmount, fundingAccount, isCredit, tags, actionData, userContext);
+    return generateSplitLedgerEntry(formattedDate, payee, targetAccount, totalAmount, fundingAccount, isCredit, tags, actionData, userContext, narration);
   }
 
   // Standard non-split entry
@@ -530,6 +530,11 @@ function formatLedgerCliEntry(date, payee, targetAccount, amount, fundingAccount
   // Add user context as first comment if enabled
   if (actionData && actionData.include_user_context && userContext && userContext.trim()) {
     entry += `\n    ;${userContext.trim()}`;
+  }
+
+  // Add narration as comment if enabled
+  if (actionData && actionData.include_narration && narration && narration.trim()) {
+    entry += `\n    ;${narration.trim()}`;
   }
 
   // Add tags as individual comments if provided
@@ -550,13 +555,18 @@ function formatLedgerCliEntry(date, payee, targetAccount, amount, fundingAccount
   return entry;
 }
 
-function generateSplitLedgerEntry(formattedDate, payee, targetAccount, totalAmount, fundingAccount, isCredit, tags, actionData, userContext = null) {
+function generateSplitLedgerEntry(formattedDate, payee, targetAccount, totalAmount, fundingAccount, isCredit, tags, actionData, userContext = null, narration = null) {
   // Build the entry with comments
   let entry = `${formattedDate} ${payee}`;
 
   // Add user context as first comment if enabled
   if (actionData && actionData.include_user_context && userContext && userContext.trim()) {
     entry += `\n    ;${userContext.trim()}`;
+  }
+
+  // Add narration as comment if enabled
+  if (actionData && actionData.include_narration && narration && narration.trim()) {
+    entry += `\n    ;${narration.trim()}`;
   }
 
   // Add tags as individual comments if provided
