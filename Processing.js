@@ -105,18 +105,39 @@ function processRowRange(sheet, startRow, endRow) {
 }
 
 function getColumnIndices(headers) {
-  return {
-    srNo: headers.indexOf('Sr No'),
-    date: headers.indexOf('Transaction Date'),
-    withdrawal: headers.indexOf('Withdrawal'),
-    deposit: headers.indexOf('Deposit'),
-    balance: headers.indexOf('Balance'),
-    narration: headers.indexOf('Narration'),
-    userContext: headers.indexOf('User Context'),
-    tags: headers.indexOf('Tags'),
-    confidence: headers.indexOf('LLM Confidence'),
-    finalEntry: headers.indexOf('Final Entry')
+  // Debug: Log the actual headers being read
+  Logger.log('Headers array length: ' + headers.length);
+  Logger.log('Headers content: ' + JSON.stringify(headers));
+
+  // Check for exact matches first
+  for (let i = 0; i < headers.length; i++) {
+    Logger.log('Header[' + i + ']: "' + headers[i] + '" (type: ' + typeof headers[i] + ')');
+  }
+
+  // Helper function to find column index with flexible matching
+  function findColumnIndex(searchTerms) {
+    for (let term of searchTerms) {
+      const index = headers.indexOf(term);
+      if (index !== -1) return index;
+    }
+    return -1;
+  }
+
+  const indices = {
+    srNo: findColumnIndex(['Sr No', 'Sr. No', 'SrNo']),
+    date: findColumnIndex(['Transaction Date', 'Date', 'Txn Date']),
+    withdrawal: findColumnIndex(['Withdrawal', 'Withdrawal Amount', 'Debit', 'Debit Amount']),
+    deposit: findColumnIndex(['Deposit', 'Deposit Amount', 'Credit', 'Credit Amount']),
+    balance: findColumnIndex(['Balance', 'Available Balance']),
+    narration: findColumnIndex(['Narration', 'Description', 'Details']),
+    userContext: findColumnIndex(['User Context', 'UserContext', 'Context']),
+    tags: findColumnIndex(['Tags', 'Tag']),
+    confidence: findColumnIndex(['LLM Confidence', 'Confidence']),
+    finalEntry: findColumnIndex(['Final Entry', 'FinalEntry', 'Entry'])
   };
+
+  Logger.log('Final column indices: ' + JSON.stringify(indices));
+  return indices;
 }
 
 /**
